@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
-import { api, ApiError } from '../api/client.js';
+import { api, ApiError, get } from '../api/client.js';
 import { useAuth } from '../api/auth.js';
+import { OidcButton } from './Login.js';
 
 /** First-run page (§6.1): setup token → first admin. Disabled once an admin exists. */
 export function SetupPage() {
@@ -12,6 +13,12 @@ export function SetupPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [oidc, setOidc] = useState(false);
+  useEffect(() => {
+    void get<{ enabled: boolean }>('/api/auth/oidc/config')
+      .then((r) => setOidc(r.enabled))
+      .catch(() => setOidc(false));
+  }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -82,6 +89,12 @@ export function SetupPage() {
         <button className="btn btn-primary" type="submit" disabled={busy}>
           Create admin
         </button>
+        {oidc && (
+          <>
+            <OidcButton returnTo="/" />
+            <span className="hint">The first person to sign in with OIDC becomes the admin.</span>
+          </>
+        )}
       </form>
     </div>
   );

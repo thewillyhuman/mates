@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { api, ApiError } from '../api/client.js';
+import { api, ApiError, get } from '../api/client.js';
 import { useAuth } from '../api/auth.js';
 
+/** Sign-in (§10.4): local password, or the organisation's OIDC provider when the chart enables it. */
 export function LoginPage() {
   const { refresh } = useAuth();
   const navigate = useNavigate();
@@ -11,7 +12,14 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [oidc, setOidc] = useState(false);
   const next = (location.state as { from?: string } | null)?.from ?? '/';
+
+  useEffect(() => {
+    void get<{ enabled: boolean }>('/api/auth/oidc/config')
+      .then((r) => setOidc(r.enabled))
+      .catch(() => setOidc(false));
+  }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -65,7 +73,21 @@ export function LoginPage() {
         <button className="btn btn-primary" type="submit" disabled={busy}>
           Sign in
         </button>
+        {oidc && <OidcButton returnTo={next} />}
       </form>
     </div>
+  );
+}
+
+/** A plain link: the API starts the authorization code flow and redirects back. */
+export function OidcButton({ returnTo }: { returnTo: string }) {
+  return (
+    <a
+      className="btn"
+      style={{ marginLeft: 8 }}
+      href={`/api/auth/oidc/start?return_to=${encodeURIComponent(returnTo)}`}
+    >
+      Sign in with OIDC
+    </a>
   );
 }
