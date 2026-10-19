@@ -8,8 +8,10 @@ import { buildApp, type AppDeps } from '../src/http/app.js';
 import { Integrations } from '../src/integrations.js';
 import { FakeJobsClient } from '../src/kubernetes/jobs.js';
 import { createLogger } from '../src/logger.js';
+import { MergeRequests } from '../src/orchestrator/merge-requests.js';
 import { Orchestrator } from '../src/orchestrator/reconciler.js';
 import { InvocationSpawner } from '../src/orchestrator/spawner.js';
+import { TrackerSync } from '../src/orchestrator/tracker-sync.js';
 import { EventBus } from '../src/runs/bus.js';
 import { RunStarter } from '../src/runs/starter.js';
 import { InMemorySecretStore } from '../src/secrets/store.js';
@@ -61,7 +63,22 @@ function stubDeps(db: TestDatabase, bootstrap: Bootstrap): Omit<AppDeps, 'uiDir'
     starter: new RunStarter({ db: db.pool, bus, settings, integrations, log }),
     credentials,
     teamContext,
-    orchestrator: new Orchestrator({ db: db.pool, bus, log, settings, teamContext, spawner }),
+    orchestrator: new Orchestrator({
+      db: db.pool,
+      bus,
+      log,
+      settings,
+      teamContext,
+      spawner,
+      mergeRequests: new MergeRequests({
+        integrations,
+        log,
+        publicUrl: 'http://mates.test',
+        version: 'test',
+      }),
+      trackerSync: new TrackerSync({ integrations, log, publicUrl: 'http://mates.test' }),
+    }),
+    trackerSync: new TrackerSync({ integrations, log, publicUrl: 'http://mates.test' }),
     fakeClaude: true,
     secureCookies: false,
     version: 'test',

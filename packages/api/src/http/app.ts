@@ -13,6 +13,7 @@ import type { Pool } from '../db/pool.js';
 import type { Logger } from '../logger.js';
 import type { Integrations } from '../integrations.js';
 import type { Orchestrator } from '../orchestrator/reconciler.js';
+import type { TrackerSync } from '../orchestrator/tracker-sync.js';
 import type { EventBus } from '../runs/bus.js';
 import type { RunStarter } from '../runs/starter.js';
 import type { CredentialStore } from '../settings/credentials.js';
@@ -40,7 +41,8 @@ export interface AppDeps {
   readonly starter: RunStarter;
   readonly credentials: CredentialStore;
   readonly teamContext: TeamContextService;
-  readonly orchestrator: Pick<Orchestrator, 'cancel'>;
+  readonly orchestrator: Pick<Orchestrator, 'cancel' | 'pause' | 'resume' | 'retry'>;
+  readonly trackerSync: Pick<TrackerSync, 'comment'>;
   readonly fakeClaude: boolean;
   readonly kubernetes?: ReadinessDeps['kubernetes'];
   /** Cookies are marked Secure when the public URL is https. */
@@ -84,6 +86,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     bus: deps.bus,
     starter: deps.starter,
     orchestrator: deps.orchestrator,
+    trackerSync: deps.trackerSync,
+    settings: deps.settings,
   });
   await internalRoutes(app, {
     db: deps.db,

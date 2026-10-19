@@ -4,7 +4,11 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Pool } from '../../db/pool.js';
 import type { Orchestrator } from '../../orchestrator/reconciler.js';
+import type { TrackerSync } from '../../orchestrator/tracker-sync.js';
+import type { Settings } from '../../settings/schema.js';
 import { getBlob } from '../../runs/blobs.js';
+import { createNudge } from '../../runs/nudges.js';
+import { appendEvents } from '../../runs/events.js';
 import type { EventBus } from '../../runs/bus.js';
 import { listEvents } from '../../runs/events.js';
 import { findRun, getRunDetail, listRuns } from '../../runs/repository.js';
@@ -17,7 +21,9 @@ export interface RunsRouteDeps {
   db: Pool;
   bus: EventBus;
   starter: Pick<RunStarter, 'start'>;
-  orchestrator: Pick<Orchestrator, 'cancel'>;
+  orchestrator: Pick<Orchestrator, 'cancel' | 'pause' | 'resume' | 'retry'>;
+  trackerSync: Pick<TrackerSync, 'comment'>;
+  settings: { get(): Promise<Settings> };
 }
 
 const eventSchema = z.object({
@@ -139,6 +145,97 @@ export async function runsRoutes(app: FastifyInstance, deps: RunsRouteDeps): Pro
       if (!(await findRun(deps.db, req.params.id))) throw notFound('run');
       await deps.orchestrator.cancel(req.params.id, req.user!.email, req.body.reason);
       return toRunDetail((await getRunDetail(deps.db, req.params.id))!);
+    },
+  );
+
+  const idParam = z.object({ id: z.string().uuid() });
+  const detailOf = async (id: string) => toRunDetail((await getRunDetail(deps.db, id))!);
+  const mustExist = async (id: string) => {
+    if (!(await findRun(deps.db, id))) throw notFound('run');
+  };
+
+  r.post(
+    '/api/runs/:id/pause',
+    {
+      preHandler: operator,
+      schema: { tags: ['runs'], params: idParam, response: { 200: runDetailSchema } },
+    },
+    async (req) => {
+      await mustExist(req.params.id);
+      await deps.orchestrator.pause(req.params.id, req.user!.email);
+      return detailOf(req.params.id);
+    },
+  );
+
+  r.post(
+    '/api/runs/:id/resume',
+    {
+      preHandler: operator,
+      schema: { tags: ['runs'], params: idParam, response: { 200: runDetailSchema } },
+    },
+    async (req) => {
+      await mustExist(req.params.id);
+      await deps.orchestrator.resume(req.params.id, req.user!.email);
+      return detailOf(req.params.id);
+    },
+  );
+
+  // blocked → queued (decision 0015); may raise the per-run budget.
+  r.post(
+    '/api/runs/:id/retry',
+    {
+      preHandler: operator,
+      schema: {
+        tags: ['runs'],
+        params: idParam,
+        body: z.object({ budget_usd: z.number().positive().optional() }).default({}),
+        response: { 200: runDetailSchema },
+      },
+    },
+    async (req) => {
+      await mustExist(req.params.id);
+      await deps.orchestrator.retry(req.params.id, req.user!.email, req.body.budget_usd);
+      return detailOf(req.params.id);
+    },
+  );
+
+  r.post(
+    '/api/runs/:id/nudges',
+    {
+      preHandler: operator,
+      schema: {
+        tags: ['runs'],
+        params: idParam,
+        body: z.object({
+          text: z.string().min(1).max(4000),
+          post_to_tracker: z.boolean().default(false),
+          and_retry: z.boolean().default(false),
+        }),
+        response: { 201: runDetailSchema },
+      },
+    },
+    async (req, reply) => {
+      await mustExist(req.params.id);
+      const by = req.user!.displayName || req.user!.email;
+      const nudge = await createNudge(deps.db, deps.bus, {
+        runId: req.params.id,
+        author: by,
+        text: req.body.text,
+        postToTracker: req.body.post_to_tracker,
+      });
+      if (req.body.post_to_tracker) {
+        const detail = (await getRunDetail(deps.db, req.params.id))!;
+        const { events } = await deps.trackerSync.comment(
+          detail.ticket.externalKey,
+          req.params.id,
+          `Note from ${by} for the next iteration: "${nudge.text}"`,
+          'nudge_echo',
+          await deps.settings.get(),
+        );
+        await appendEvents(deps.db, deps.bus, req.params.id, events);
+      }
+      if (req.body.and_retry) await deps.orchestrator.retry(req.params.id, req.user!.email);
+      return reply.status(201).send(await detailOf(req.params.id));
     },
   );
 

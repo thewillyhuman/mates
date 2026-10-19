@@ -5,9 +5,11 @@ import { buildApp } from '../src/http/app.js';
 import { Integrations, type IntegrationOverrides } from '../src/integrations.js';
 import { FakeJobsClient } from '../src/kubernetes/jobs.js';
 import { createLogger } from '../src/logger.js';
+import { MergeRequests } from '../src/orchestrator/merge-requests.js';
 import { JobMonitor } from '../src/orchestrator/monitor.js';
 import { Orchestrator } from '../src/orchestrator/reconciler.js';
 import { InvocationSpawner } from '../src/orchestrator/spawner.js';
+import { TrackerSync } from '../src/orchestrator/tracker-sync.js';
 import { EventBus } from '../src/runs/bus.js';
 import { RunStarter } from '../src/runs/starter.js';
 import { FakeScm } from '../src/scm/fake.js';
@@ -81,7 +83,6 @@ export async function testApp(
     helm,
     defaultRunnerImage: 'mates-runner:test',
   });
-  const orchestrator = new Orchestrator({ db: db.pool, bus, log, settings, teamContext, spawner });
   const monitor = new JobMonitor({ db: db.pool, bus, jobs, log, graceMs: 0 });
   const tracker = new FakeTracker();
   const scm = new FakeScm();
@@ -90,6 +91,23 @@ export async function testApp(
     scm: { gitlab: scm, gitea: scm },
   };
   const integrations = new Integrations(settings, credentials, 'http://mates.test', overrides);
+  const mergeRequests = new MergeRequests({
+    integrations,
+    log,
+    publicUrl: 'http://mates.test',
+    version: 'test',
+  });
+  const trackerSync = new TrackerSync({ integrations, log, publicUrl: 'http://mates.test' });
+  const orchestrator = new Orchestrator({
+    db: db.pool,
+    bus,
+    log,
+    settings,
+    teamContext,
+    spawner,
+    mergeRequests,
+    trackerSync,
+  });
   const starter = new RunStarter({ db: db.pool, bus, settings, integrations, log });
   const poller = new TrackerPoller({ db: db.pool, settings, integrations, starter, log });
   const app = await buildApp({
@@ -104,6 +122,7 @@ export async function testApp(
     credentials,
     teamContext,
     orchestrator,
+    trackerSync,
     fakeClaude,
     secureCookies: false,
     version: 'test',

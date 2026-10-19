@@ -89,9 +89,19 @@ export async function prepareContextBundle(
     addressed: addressed
       ? { blocking_ids: addressed.blocking_ids, skipped: addressed.skipped }
       : null,
-    nudges: invocation.mate === 'implementer' ? projection.pendingNudges : [],
+    // Nudges are consumed at spawn time (§7.5 rule 9); the brief carries the ones consumed by this invocation.
+    nudges:
+      invocation.mate === 'implementer'
+        ? projection.nudges.filter((n) => n.consumedBy === invocation.id)
+        : [],
     reviewer,
-    fake: deps.fakeClaude ? fakeScenario(settings.fake_claude.scenarios, invocation) : null,
+    fake: deps.fakeClaude
+      ? fakeScenario(
+          settings.fake_claude.scenarios,
+          invocation,
+          await priorIntakePasses(deps.db, invocation),
+        )
+      : null,
     promptOverrides: settings.prompts,
     gitAuthor: { name: 'Mates', email: 'mates@localhost' },
     setupTimeoutSeconds: 600,
@@ -99,6 +109,15 @@ export async function prepareContextBundle(
   };
   void lastIteration;
   return packContextBundle(await buildContextFiles(input), teamPackage);
+}
+
+async function priorIntakePasses(db: Pool, invocation: Invocation): Promise<number> {
+  if (invocation.mate !== 'intake') return 0;
+  const r = await db.query<{ n: string }>(
+    `SELECT count(*)::text AS n FROM invocations WHERE run_id = $1 AND mate = 'intake' AND seq < $2 AND attempt = 0`,
+    [invocation.runId, invocation.seq],
+  );
+  return Number(r.rows[0]?.n ?? 0);
 }
 
 export function candidateRepoId(
@@ -113,9 +132,12 @@ export function candidateRepoId(
 export function fakeScenario(
   scenarios: Record<Mate, string[]>,
   invocation: Pick<Invocation, 'mate' | 'iteration'>,
+  /** For intake: how many intake passes ran before this one (each clarification round advances the list). */
+  priorPasses = 0,
 ): { scenario: string; patch: string | null } {
   const list = scenarios[invocation.mate];
-  const idx = Math.max(0, Math.min(invocation.iteration - 1, list.length - 1));
+  const position = invocation.mate === 'intake' ? priorPasses : invocation.iteration - 1;
+  const idx = Math.max(0, Math.min(position, list.length - 1));
   const scenario = list[idx] ?? list[0] ?? `${invocation.mate}_default`;
   const patch =
     invocation.mate === 'implementer' && !/empty|budget/.test(scenario)

@@ -9,9 +9,11 @@ import { KubernetesHealth } from './kubernetes/health.js';
 import { Integrations } from './integrations.js';
 import { FakeJobsClient, KubernetesJobsClient, type JobsClient } from './kubernetes/jobs.js';
 import { createLogger } from './logger.js';
+import { MergeRequests } from './orchestrator/merge-requests.js';
 import { JobMonitor } from './orchestrator/monitor.js';
 import { Orchestrator } from './orchestrator/reconciler.js';
 import { InvocationSpawner } from './orchestrator/spawner.js';
+import { TrackerSync } from './orchestrator/tracker-sync.js';
 import { EventBus } from './runs/bus.js';
 import { RunStarter } from './runs/starter.js';
 import { KubernetesSecretStore, loadKubeConfig } from './secrets/kubernetes.js';
@@ -84,9 +86,25 @@ const spawner = new InvocationSpawner({
   helm,
   defaultRunnerImage: config.runnerImage,
 });
-const orchestrator = new Orchestrator({ db: pool, bus, log, settings, teamContext, spawner });
-const monitor = new JobMonitor({ db: pool, bus, jobs, log });
 const integrations = new Integrations(settings, credentials, config.publicUrl);
+const mergeRequests = new MergeRequests({
+  integrations,
+  log,
+  publicUrl: config.publicUrl,
+  version,
+});
+const trackerSync = new TrackerSync({ integrations, log, publicUrl: config.publicUrl });
+const orchestrator = new Orchestrator({
+  db: pool,
+  bus,
+  log,
+  settings,
+  teamContext,
+  spawner,
+  mergeRequests,
+  trackerSync,
+});
+const monitor = new JobMonitor({ db: pool, bus, jobs, log });
 const starter = new RunStarter({ db: pool, bus, settings, integrations, log });
 const poller = new TrackerPoller({ db: pool, settings, integrations, starter, log });
 
@@ -102,6 +120,7 @@ const app = await buildApp({
   credentials,
   teamContext,
   orchestrator,
+  trackerSync,
   fakeClaude: config.fakeClaude,
   kubernetes,
   secureCookies: config.publicUrl.startsWith('https://'),
