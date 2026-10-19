@@ -11,10 +11,11 @@
   },
   "scripts": {
     "build": "pnpm -r --filter './packages/*' build",
-    "typecheck": "pnpm -r --filter './packages/*' typecheck",
-    "test": "pnpm -r --filter './packages/*' test",
+    "typecheck": "pnpm build:core && pnpm -r --filter './packages/*' typecheck",
+    "test": "pnpm build:core && pnpm -r --filter './packages/*' test",
     "lint": "eslint . && prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "build:core": "pnpm --filter @mates/core build"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

@@ -41,6 +41,9 @@ importers:
       '@kubernetes/client-node':
         specifier: ^1.4.0
         version: 1.4.0
+      '@mates/core':
+        specifier: workspace:*
+        version: link:../core
       '@node-rs/argon2':
         specifier: ^2.0.2
         version: 2.2.2
@@ -81,6 +84,19 @@ importers:
       tsx:
         specifier: ^4.20.0
         version: 4.23.15
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@24.19.2)(tsx@4.23.15)(yaml@2.9.1)
+
+  packages/core:
+    dependencies:
+      zod:
+        specifier: ^4.1.0
+        version: 4.6.7
+    devDependencies:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
