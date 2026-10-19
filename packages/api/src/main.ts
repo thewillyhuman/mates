@@ -6,19 +6,22 @@ import { migrate } from './db/migrate.js';
 import { createPool } from './db/pool.js';
 import { buildApp } from './http/app.js';
 import { KubernetesHealth } from './kubernetes/health.js';
+import { Integrations } from './integrations.js';
 import { FakeJobsClient, KubernetesJobsClient, type JobsClient } from './kubernetes/jobs.js';
 import { createLogger } from './logger.js';
 import { JobMonitor } from './orchestrator/monitor.js';
 import { Orchestrator } from './orchestrator/reconciler.js';
 import { InvocationSpawner } from './orchestrator/spawner.js';
 import { EventBus } from './runs/bus.js';
+import { RunStarter } from './runs/starter.js';
 import { KubernetesSecretStore, loadKubeConfig } from './secrets/kubernetes.js';
 import { InMemorySecretStore, type SecretStore } from './secrets/store.js';
 import { CredentialStore } from './settings/credentials.js';
-import { readHelmConfig, runDefaults } from './settings/helm.js';
+import { readHelmConfig } from './settings/helm.js';
 import { SettingsService } from './settings/service.js';
 import { Bootstrap } from './setup/bootstrap.js';
 import { TeamContextService } from './team-context/service.js';
+import { TrackerPoller } from './tracker/poller.js';
 
 /** Process entrypoint: config → DB → migrations → HTTP. Fails loudly. */
 const config = loadConfig(process.env);
@@ -83,6 +86,9 @@ const spawner = new InvocationSpawner({
 });
 const orchestrator = new Orchestrator({ db: pool, bus, log, settings, teamContext, spawner });
 const monitor = new JobMonitor({ db: pool, bus, jobs, log });
+const integrations = new Integrations(settings, credentials, config.publicUrl);
+const starter = new RunStarter({ db: pool, bus, settings, integrations, log });
+const poller = new TrackerPoller({ db: pool, settings, integrations, starter, log });
 
 const app = await buildApp({
   db: pool,
@@ -90,8 +96,9 @@ const app = await buildApp({
   bootstrap,
   bus,
   internalKey: config.internalKey,
-  runDefaults: runDefaults(helm),
   settings,
+  integrations,
+  starter,
   credentials,
   teamContext,
   orchestrator,
@@ -106,6 +113,7 @@ const shutdown = async (signal: string): Promise<void> => {
   log.info({ signal }, 'shutting down');
   orchestrator.stop();
   monitor.stop();
+  poller.stop();
   await app.close();
   await pool.end();
   process.exit(0);
@@ -116,6 +124,7 @@ process.on('SIGINT', () => void shutdown('SIGINT'));
 await app.listen({ host: config.host, port: config.port });
 orchestrator.start();
 monitor.start();
+poller.start();
 log.info({ port: config.port, version }, 'mates-api listening');
 
 function defaultUiDir(): string {

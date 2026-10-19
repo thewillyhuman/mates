@@ -58,16 +58,3 @@ export async function readHelmConfig(file: string | undefined): Promise<HelmConf
   if (!parsed.success) throw new Error(`invalid ${file}: ${parsed.error.message}`);
   return parsed.data;
 }
-
-/** Defaults a new run is created with until the settings UI exists (M3). */
-export interface RunDefaults {
-  readonly maxIterations: number;
-  readonly budgetUsd: number;
-}
-
-export function runDefaults(helm: HelmConfig): RunDefaults {
-  return {
-    maxIterations: helm.config?.maxIterations ?? 4,
-    budgetUsd: helm.config?.budgets?.perRunUsd ?? 25,
-  };
-}

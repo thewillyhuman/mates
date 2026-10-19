@@ -11,10 +11,11 @@ import { access } from 'node:fs/promises';
 import path from 'node:path';
 import type { Pool } from '../db/pool.js';
 import type { Logger } from '../logger.js';
+import type { Integrations } from '../integrations.js';
 import type { Orchestrator } from '../orchestrator/reconciler.js';
 import type { EventBus } from '../runs/bus.js';
+import type { RunStarter } from '../runs/starter.js';
 import type { CredentialStore } from '../settings/credentials.js';
-import type { RunDefaults } from '../settings/helm.js';
 import type { SettingsService } from '../settings/service.js';
 import type { Bootstrap } from '../setup/bootstrap.js';
 import type { TeamContextService } from '../team-context/service.js';
@@ -26,6 +27,7 @@ import { internalRoutes } from './routes/internal.js';
 import { runsRoutes } from './routes/runs.js';
 import { settingsRoutes } from './routes/settings.js';
 import { setupRoutes } from './routes/setup.js';
+import { webhookRoutes } from './routes/webhooks.js';
 
 export interface AppDeps {
   readonly db: Pool;
@@ -33,8 +35,9 @@ export interface AppDeps {
   readonly bootstrap: Bootstrap;
   readonly bus: EventBus;
   readonly internalKey: string;
-  readonly runDefaults: RunDefaults;
   readonly settings: SettingsService;
+  readonly integrations: Integrations;
+  readonly starter: RunStarter;
   readonly credentials: CredentialStore;
   readonly teamContext: TeamContextService;
   readonly orchestrator: Pick<Orchestrator, 'cancel'>;
@@ -79,7 +82,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await runsRoutes(app, {
     db: deps.db,
     bus: deps.bus,
-    defaults: deps.runDefaults,
+    starter: deps.starter,
     orchestrator: deps.orchestrator,
   });
   await internalRoutes(app, {
@@ -96,6 +99,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     settings: deps.settings,
     credentials: deps.credentials,
     teamContext: deps.teamContext,
+    integrations: deps.integrations,
+  });
+  await webhookRoutes(app, {
+    settings: deps.settings,
+    integrations: deps.integrations,
+    starter: deps.starter,
+    log: deps.log,
   });
 
   const serveUi = deps.uiDir !== undefined && (await exists(deps.uiDir));

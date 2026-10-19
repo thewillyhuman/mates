@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import type { Integrations } from '../../integrations.js';
 import {
   PROMPT_NAMES,
   defaultPrompt,
@@ -26,6 +27,7 @@ export interface SettingsRouteDeps {
   settings: SettingsService;
   credentials: CredentialStore;
   teamContext: TeamContextService;
+  integrations: Integrations;
 }
 
 const credentialStatus = z.object({
@@ -131,6 +133,62 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
         throw err;
       }
       return reply.status(204).send(null);
+    },
+  );
+
+  // §6.2 "Test" buttons: pass/fail with a reason, never the secret itself.
+  r.post(
+    '/api/settings/credentials/:name/test',
+    {
+      preHandler: admin,
+      schema: {
+        tags: ['settings'],
+        params: name,
+        response: {
+          200: z.object({
+            ok: z.boolean(),
+            message: z.string(),
+            details: z.record(z.string(), z.unknown()).default({}),
+          }),
+        },
+      },
+    },
+    async (req) => {
+      const n = req.params.name;
+      const settings = await deps.settings.get();
+      if (n === 'jira_token') {
+        const tracker = await deps.integrations.tracker();
+        if (!tracker)
+          return { ok: false, message: 'set the Jira base URL and token first', details: {} };
+        const result = await tracker.test(deps.integrations.triggerRule(settings));
+        if (result.ok) await deps.credentials.markValidated(n);
+        return { ok: result.ok, message: result.message, details: { matched: result.matched } };
+      }
+      const scmMatch = /^scm_(.+)_token$/.exec(n);
+      if (scmMatch) {
+        const scm = await deps.integrations.scm(scmMatch[1]!);
+        if (!scm)
+          return {
+            ok: false,
+            message: `configure provider "${scmMatch[1]}" and its token first`,
+            details: {},
+          };
+        const result = await scm.test();
+        if (result.ok) await deps.credentials.markValidated(n);
+        return { ok: result.ok, message: result.message, details: { repos: result.repos } };
+      }
+      if (n === 'anthropic_api_key') {
+        return {
+          ok: false,
+          message: 'the Anthropic test runs a short-lived Job; available with the settings UI (M6)',
+          details: {},
+        };
+      }
+      return {
+        ok: (await deps.credentials.status(n)).set,
+        message: 'no connectivity test for this credential',
+        details: {},
+      };
     },
   );
 

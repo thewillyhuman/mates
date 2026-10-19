@@ -1,7 +1,8 @@
-import { TERMINAL_STAGES, type RunProjection, type Stage } from '@mates/core';
+import { TERMINAL_STAGES, type BlockedReason, type RunProjection, type Stage } from '@mates/core';
 import type pg from 'pg';
 import { withTransaction, type Pool, type Queryable } from '../db/pool.js';
 import type { EventBus } from './bus.js';
+import type { TicketDetails } from '../tracker/types.js';
 import { appendEventsTx, listEvents, projectRunById } from './events.js';
 
 /** Runs and tickets: creation, lookup and board listing. */
@@ -15,6 +16,7 @@ export interface Ticket {
   url: string | null;
   projectKey: string | null;
   repoId: string | null;
+  details: TicketDetails;
 }
 
 export interface Run {
@@ -45,6 +47,7 @@ interface TicketRow {
   url: string | null;
   project_key: string | null;
   repo_id: string | null;
+  details: TicketDetails;
 }
 
 interface RunRow {
@@ -66,7 +69,8 @@ interface RunRow {
   paused: boolean;
 }
 
-const ticketColumns = 'id, tracker, external_key, external_id, title, url, project_key, repo_id';
+const ticketColumns =
+  'id, tracker, external_key, external_id, title, url, project_key, repo_id, details';
 const runColumns =
   'id, ticket_id, status, iteration, max_iterations, branch, base_branch, mr_id, mr_url, mr_state, created_by, created_at, finished_at, budget_usd, team_context_version, paused';
 
@@ -80,6 +84,7 @@ function toTicket(r: TicketRow): Ticket {
     url: r.url,
     projectKey: r.project_key,
     repoId: r.repo_id,
+    details: r.details,
   };
 }
 
@@ -111,19 +116,21 @@ export interface TicketInput {
   title?: string;
   url?: string | null;
   projectKey?: string | null;
+  details?: TicketDetails;
 }
 
 /** Inserts or refreshes a ticket by `(tracker, external_key)`. */
 export async function upsertTicket(db: Queryable, input: TicketInput): Promise<Ticket> {
   const projectKey = input.projectKey ?? input.externalKey.split('-')[0] ?? null;
   const r = await db.query<TicketRow>(
-    `INSERT INTO tickets (tracker, external_key, external_id, title, url, project_key)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO tickets (tracker, external_key, external_id, title, url, project_key, details)
+     VALUES ($1, $2, $3, $4, $5, $6, $8)
      ON CONFLICT (tracker, external_key) DO UPDATE SET
        external_id = COALESCE(EXCLUDED.external_id, tickets.external_id),
        title = CASE WHEN $7 THEN EXCLUDED.title ELSE tickets.title END,
        url = COALESCE(EXCLUDED.url, tickets.url),
-       project_key = COALESCE(EXCLUDED.project_key, tickets.project_key)
+       project_key = COALESCE(EXCLUDED.project_key, tickets.project_key),
+       details = CASE WHEN $9 THEN EXCLUDED.details ELSE tickets.details END
      RETURNING ${ticketColumns}`,
     [
       input.tracker ?? 'jira',
@@ -133,6 +140,8 @@ export async function upsertTicket(db: Queryable, input: TicketInput): Promise<T
       input.url ?? null,
       projectKey,
       input.title !== undefined,
+      JSON.stringify(input.details ?? {}),
+      input.details !== undefined,
     ],
   );
   return toTicket(r.rows[0]!);
@@ -156,6 +165,46 @@ export async function updateTicketRepo(
   repoId: string,
 ): Promise<void> {
   await db.query('UPDATE tickets SET repo_id = $2 WHERE id = $1', [ticketId, repoId]);
+}
+
+export async function updateTicketDetails(
+  db: Queryable,
+  ticketId: string,
+  details: TicketDetails,
+): Promise<void> {
+  await db.query('UPDATE tickets SET details = $2 WHERE id = $1', [
+    ticketId,
+    JSON.stringify(details),
+  ]);
+}
+
+export async function findActiveRunForTicket(
+  db: Queryable,
+  ticketId: string,
+): Promise<Run | undefined> {
+  const r = await db.query<RunRow>(
+    `SELECT ${runColumns} FROM runs WHERE ticket_id = $1 AND status NOT IN ('done','cancelled','failed')`,
+    [ticketId],
+  );
+  return r.rows[0] ? toRun(r.rows[0]) : undefined;
+}
+
+/** Tickets whose active run is blocked for the given reason. */
+export async function listTicketsWithRunsBlockedOn(
+  db: Queryable,
+  reason: BlockedReason,
+): Promise<Ticket[]> {
+  const r = await db.query<TicketRow & { run_id: string }>(
+    `SELECT t.id, t.tracker, t.external_key, t.external_id, t.title, t.url, t.project_key, t.repo_id, t.details,
+            r.id AS run_id
+     FROM runs r JOIN tickets t ON t.id = r.ticket_id WHERE r.status = 'blocked'`,
+  );
+  const out: Ticket[] = [];
+  for (const row of r.rows) {
+    const p = await projectRunById(db, row.run_id);
+    if (p.blockedReason === reason) out.push(toTicket(row));
+  }
+  return out;
 }
 
 export interface CreateRunInput {
@@ -271,7 +320,7 @@ export async function listRuns(db: Queryable, filter: ListRunsFilter = {}): Prom
       .join(', ')},
             json_build_object('id', t.id, 'tracker', t.tracker, 'external_key', t.external_key,
               'external_id', t.external_id, 'title', t.title, 'url', t.url,
-              'project_key', t.project_key, 'repo_id', t.repo_id) AS t
+              'project_key', t.project_key, 'repo_id', t.repo_id, 'details', t.details) AS t
      FROM runs r JOIN tickets t ON t.id = r.ticket_id
      ${conds.length ? `WHERE ${conds.join(' AND ')}` : ''}
      ORDER BY r.created_at DESC LIMIT $${params.length}`,

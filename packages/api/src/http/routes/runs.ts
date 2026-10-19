@@ -7,16 +7,16 @@ import type { Orchestrator } from '../../orchestrator/reconciler.js';
 import { getBlob } from '../../runs/blobs.js';
 import type { EventBus } from '../../runs/bus.js';
 import { listEvents } from '../../runs/events.js';
-import { createRun, findRun, getRunDetail, listRuns } from '../../runs/repository.js';
+import { findRun, getRunDetail, listRuns } from '../../runs/repository.js';
+import type { RunStarter } from '../../runs/starter.js';
 import { runDetailSchema, runSummarySchema, toRunDetail, toRunSummary } from '../../runs/views.js';
-import type { RunDefaults } from '../../settings/helm.js';
 import { forbidden, notFound } from '../errors.js';
 import { openSse, sendRunEvents } from '../sse.js';
 
 export interface RunsRouteDeps {
   db: Pool;
   bus: EventBus;
-  defaults: RunDefaults;
+  starter: Pick<RunStarter, 'start'>;
   orchestrator: Pick<Orchestrator, 'cancel'>;
 }
 
@@ -72,13 +72,7 @@ export async function runsRoutes(app: FastifyInstance, deps: RunsRouteDeps): Pro
       },
     },
     async (req, reply) => {
-      const result = await createRun(deps.db, deps.bus, {
-        ticket: { externalKey: req.body.ticket_key },
-        trigger: 'manual',
-        by: req.user!.email,
-        maxIterations: deps.defaults.maxIterations,
-        budgetUsd: deps.defaults.budgetUsd,
-      });
+      const result = await deps.starter.start(req.body.ticket_key, 'manual', req.user!.email);
       const detail = (await getRunDetail(deps.db, result.run.id))!;
       return reply.status(result.created ? 201 : 200).send(toRunDetail(detail));
     },

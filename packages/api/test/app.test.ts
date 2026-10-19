@@ -5,11 +5,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { freshDatabase, stopTestDatabase, type TestDatabase } from './db.js';
 import { buildApp, type AppDeps } from '../src/http/app.js';
+import { Integrations } from '../src/integrations.js';
 import { FakeJobsClient } from '../src/kubernetes/jobs.js';
 import { createLogger } from '../src/logger.js';
 import { Orchestrator } from '../src/orchestrator/reconciler.js';
 import { InvocationSpawner } from '../src/orchestrator/spawner.js';
 import { EventBus } from '../src/runs/bus.js';
+import { RunStarter } from '../src/runs/starter.js';
 import { InMemorySecretStore } from '../src/secrets/store.js';
 import { CredentialStore } from '../src/settings/credentials.js';
 import { SettingsService } from '../src/settings/service.js';
@@ -46,15 +48,18 @@ function stubDeps(db: TestDatabase, bootstrap: Bootstrap): Omit<AppDeps, 'uiDir'
     helm: {},
     defaultRunnerImage: 'img',
   });
+  const credentials = new CredentialStore(secrets, db.pool, 'mates', false);
+  const integrations = new Integrations(settings, credentials, 'http://mates.test');
   return {
     db: db.pool,
     log,
     bootstrap,
     bus,
     internalKey: 'k'.repeat(32),
-    runDefaults: { maxIterations: 4, budgetUsd: 25 },
     settings,
-    credentials: new CredentialStore(secrets, db.pool, 'mates', false),
+    integrations,
+    starter: new RunStarter({ db: db.pool, bus, settings, integrations, log }),
+    credentials,
     teamContext,
     orchestrator: new Orchestrator({ db: db.pool, bus, log, settings, teamContext, spawner }),
     fakeClaude: true,
