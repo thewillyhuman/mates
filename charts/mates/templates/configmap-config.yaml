@@ -1,0 +1,21 @@
+# Helm-managed settings (§5.2). The API reads this file and shows these keys
+# as "managed by Helm" in the UI.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mates.fullname" . }}-config
+  labels:
+    {{- include "mates.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {{- toPrettyJson (dict
+          "config" .Values.config
+          "runner" (dict
+            "image" (include "mates.runnerImage" .)
+            "resources" .Values.runner.resources
+            "timeoutSeconds" .Values.runner.timeoutSeconds
+            "workspaceSizeGi" .Values.runner.workspaceSizeGi
+            "serviceAccount" (printf "%s-runner" (include "mates.fullname" .))
+            "imagePullSecrets" .Values.imagePullSecrets)
+          "credentialsReadOnly" (ne .Values.credentials.existingSecret "")
+          "oidc" .Values.auth.oidc) | nindent 4 }}

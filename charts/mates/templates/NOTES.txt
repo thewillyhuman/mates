@@ -1,0 +1,22 @@
+Mates {{ .Chart.AppVersion }} is installing in namespace {{ .Release.Namespace }}.
+
+1. Reach the UI:
+{{- if .Values.ingress.enabled }}
+     {{ include "mates.publicUrl" . }}
+{{- else }}
+     kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "mates.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+     then open http://localhost:{{ .Values.service.port }}
+{{- end }}
+
+2. On first start the API creates a one-time setup token. Read it with:
+     kubectl -n {{ .Release.Namespace }} get secret {{ include "mates.fullname" . }}-bootstrap -o jsonpath='{.data.token}' | base64 -d; echo
+
+   (The Secret appears once the API pod is Ready; it is deleted when setup completes.)
+
+3. Open /setup, paste the token and create the first admin. Then complete the
+   wizard under Settings: Anthropic, Jira, source control, team context.
+{{- if .Values.postgresql.enabled }}
+
+Note: the bundled Postgres is for evaluation. For production set
+postgresql.enabled=false and externalDatabase.url. See docs/operations.md.
+{{- end }}

@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "mates.fullname" . }}-api
+  labels:
+    {{- include "mates.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "mates.fullname" . }}-api
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "mates.fullname" . }}-api
+    namespace: {{ .Release.Namespace }}

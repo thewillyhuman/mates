@@ -1,0 +1,43 @@
+# Applies pending migrations before the new API version rolls out. On a fresh
+# install the bundled database does not exist before the hooks run, so the
+# Job is post-install there; the API also migrates at start-up under an
+# advisory lock, so both paths are idempotent.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "mates.fullname" . }}-migrate
+  labels:
+    {{- include "mates.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        {{- include "mates.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ include "mates.fullname" . }}-api
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "mates.apiImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["dist/db/migrate-cli.js"]
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            {{- include "mates.commonEnv" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

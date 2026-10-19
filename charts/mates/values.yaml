@@ -1,0 +1,121 @@
+# Default values for mates. See docs/operations.md for guidance.
+
+image:
+  repository: ghcr.io/thewillyhuman/mates-api
+  tag: "" # defaults to .Chart.appVersion
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+replicaCount: 1 # v1 requires a single replica (§17.5)
+
+runner:
+  image:
+    repository: ghcr.io/thewillyhuman/mates-runner
+    tag: "" # defaults to .Chart.appVersion
+  resources:
+    requests: { cpu: "1", memory: "2Gi" }
+    limits: { cpu: "4", memory: "8Gi" }
+  timeoutSeconds: 2700
+  workspaceSizeGi: 10
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ""
+  tls: []
+
+# URL humans use to reach the UI (Jira comments and MR descriptions link to it).
+# Defaults to https://<ingress.host> when the ingress is enabled, else the service.
+publicUrl: ""
+
+postgresql:
+  enabled: true # bundled single-node Postgres (decision 0003); not for production
+  image: postgres:16-alpine
+  auth:
+    database: mates
+    username: mates
+  storage:
+    size: 8Gi
+    className: "" # cluster default
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits: { cpu: "1", memory: "1Gi" }
+
+externalDatabase:
+  url: "" # postgres://user:pass@host:5432/db ; used when postgresql.enabled=false
+  existingSecret: "" # alternatively, a Secret holding the URL
+  key: "database-url"
+
+credentials:
+  existingSecret: "" # pre-created <name> (e.g. by External Secrets Operator); makes the UI read-only
+
+auth:
+  oidc:
+    enabled: false
+    issuer: ""
+    clientId: ""
+    existingSecret: "" # key: oidc_client_secret
+
+networkPolicy:
+  enabled: true
+  egressAllowAll: true
+  egressCidrs: []
+
+# Anything here is "managed by Helm" in the UI (§5.2).
+config:
+  maxIterations: 4
+  budgets:
+    perRunUsd: 25
+    perDayUsd: 200
+  models:
+    intake: claude-sonnet-5-5
+    implementer: claude-opus-5-5
+    reviewer: claude-opus-5-5
+  jira:
+    pollIntervalSeconds: 60
+  retention:
+    transcriptsDays: 14
+    eventsDays: 365
+  timezone: UTC
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    labels: {}
+
+logLevel: info
+
+resources:
+  requests: { cpu: "100m", memory: "256Mi" }
+  limits: { cpu: "1", memory: "1Gi" }
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+extraEnv: []

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: mates
+description: Autonomous ticket-to-merge-request agents for Jira + GitLab/GitHub, built on Claude Code.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.28.0-0"
+home: https://github.com/thewillyhuman/mates
+keywords: [claude, jira, gitlab, github, agents]
