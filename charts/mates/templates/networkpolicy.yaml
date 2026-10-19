@@ -1,6 +1,9 @@
 {{- if .Values.networkPolicy.enabled }}
-# §10.1: runner pods reach DNS, the API and the outside world (or an
-# allowlist); never each other, never Postgres, never other namespaces.
+# §10.1: runner pods reach DNS, the API and everything else (minus
+# egressDenyCidrs) or only an allowlist; never each other and never Postgres,
+# which their own ingress policies enforce. Add the cluster's pod and service
+# CIDRs to egressDenyCidrs to seal other namespaces off when the SCM and Jira
+# live outside the cluster.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -33,10 +36,10 @@ spec:
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
+            {{- with .Values.networkPolicy.egressDenyCidrs }}
             except:
-              - 10.0.0.0/8
-              - 172.16.0.0/12
-              - 192.168.0.0/16
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
     {{- else }}
     {{- range .Values.networkPolicy.egressCidrs }}
     - to:

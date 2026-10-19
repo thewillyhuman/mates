@@ -73,10 +73,15 @@ auth:
 
 networkPolicy:
   enabled: true
-  # Runner pods may reach the internet (minus private ranges) …
+  # Runner pods may reach any address except egressDenyCidrs …
   egressAllowAll: true
   # … or only these CIDRs when egressAllowAll is false.
   egressCidrs: []
+  # Destinations runner pods must never reach while egressAllowAll is true,
+  # e.g. your pod and service CIDRs (to seal other namespaces off when the
+  # SCM and Jira are outside the cluster) or 169.254.169.254/32 (cloud
+  # metadata) when no workload identity needs it.
+  egressDenyCidrs: []
   # Namespaces allowed to reach the API (your ingress controller's); empty = any.
   ingressNamespaces: []
 

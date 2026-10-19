@@ -253,6 +253,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "egressDenyCidrs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "CIDRs excluded from runner egress when egressAllowAll is true."
         }
       }
     },

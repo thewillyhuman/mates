@@ -126,8 +126,12 @@ and pull requests read & write, and metadata read.
 ## Networking
 
 `networkPolicy.enabled` (default on) lets runner pods reach DNS, the API
-and the internet minus private ranges (or `egressCidrs`); nothing reaches
-runner pods, and only the API reaches the bundled database. Set
+and any other address (or only `egressCidrs` when `egressAllowAll` is
+false); nothing reaches runner pods, and only the API reaches the bundled
+database. Put your pod and service CIDRs in `egressDenyCidrs` to keep
+runners out of other namespaces when the SCM and Jira live outside the
+cluster, and the cloud metadata address there unless a workload identity
+needs it. Set
 `networkPolicy.ingressNamespaces` to your ingress controller's namespace to
 restrict who can call the API. The chart runs under the `restricted` Pod
 Security Standard; the CI smoke test enforces that label.
