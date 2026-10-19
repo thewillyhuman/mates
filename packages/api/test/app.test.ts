@@ -6,6 +6,7 @@ import type { FastifyInstance } from 'fastify';
 import { freshDatabase, stopTestDatabase, type TestDatabase } from './db.js';
 import { buildApp } from '../src/http/app.js';
 import { createLogger } from '../src/logger.js';
+import { EventBus } from '../src/runs/bus.js';
 import { InMemorySecretStore } from '../src/secrets/store.js';
 import { Bootstrap } from '../src/setup/bootstrap.js';
 
@@ -36,6 +37,9 @@ describe('setup and auth over HTTP', () => {
       db: db.pool,
       log: createLogger('silent'),
       bootstrap,
+      bus: new EventBus(),
+      internalKey: 'k'.repeat(32),
+      runDefaults: { maxIterations: 4, budgetUsd: 25 },
       secureCookies: false,
       version: 'test',
     });
@@ -140,6 +144,9 @@ describe('setup and auth over HTTP', () => {
       db: db.pool,
       log: createLogger('silent'),
       bootstrap,
+      bus: new EventBus(),
+      internalKey: 'k'.repeat(32),
+      runDefaults: { maxIterations: 4, budgetUsd: 25 },
       secureCookies: false,
       version: 'test',
       uiDir,

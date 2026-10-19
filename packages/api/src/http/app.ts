@@ -11,17 +11,24 @@ import { access } from 'node:fs/promises';
 import path from 'node:path';
 import type { Pool } from '../db/pool.js';
 import type { Logger } from '../logger.js';
+import type { EventBus } from '../runs/bus.js';
+import type { RunDefaults } from '../settings/helm.js';
 import type { Bootstrap } from '../setup/bootstrap.js';
 import { registerErrorHandler, sendNotFound } from './errors.js';
 import { sessionPlugin } from './plugins/session.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes, type ReadinessDeps } from './routes/health.js';
+import { internalRoutes } from './routes/internal.js';
+import { runsRoutes } from './routes/runs.js';
 import { setupRoutes } from './routes/setup.js';
 
 export interface AppDeps {
   readonly db: Pool;
   readonly log: Logger;
   readonly bootstrap: Bootstrap;
+  readonly bus: EventBus;
+  readonly internalKey: string;
+  readonly runDefaults: RunDefaults;
   readonly kubernetes?: ReadinessDeps['kubernetes'];
   /** Cookies are marked Secure when the public URL is https. */
   readonly secureCookies: boolean;
@@ -59,6 +66,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await healthRoutes(app, { db: deps.db, kubernetes: deps.kubernetes });
   await setupRoutes(app, deps.bootstrap);
   await authRoutes(app, deps.db);
+  await runsRoutes(app, { db: deps.db, bus: deps.bus, defaults: deps.runDefaults });
+  await internalRoutes(app, { db: deps.db, bus: deps.bus, internalKey: deps.internalKey });
 
   const serveUi = deps.uiDir !== undefined && (await exists(deps.uiDir));
   if (serveUi) {

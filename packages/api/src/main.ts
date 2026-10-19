@@ -7,7 +7,9 @@ import { createPool } from './db/pool.js';
 import { buildApp } from './http/app.js';
 import { KubernetesHealth } from './kubernetes/health.js';
 import { createLogger } from './logger.js';
+import { EventBus } from './runs/bus.js';
 import { KubernetesSecretStore, loadKubeConfig } from './secrets/kubernetes.js';
+import { readHelmConfig, runDefaults } from './settings/helm.js';
 import { InMemorySecretStore, type SecretStore } from './secrets/store.js';
 import { Bootstrap } from './setup/bootstrap.js';
 
@@ -35,11 +37,16 @@ if (config.secretStore === 'kubernetes') {
 
 const bootstrap = new Bootstrap({ db: pool, secrets, release: config.release, log });
 await bootstrap.ensureToken();
+const helm = await readHelmConfig(config.configFile);
+const bus = new EventBus();
 
 const app = await buildApp({
   db: pool,
   log,
   bootstrap,
+  bus,
+  internalKey: config.internalKey,
+  runDefaults: runDefaults(helm),
   kubernetes,
   secureCookies: config.publicUrl.startsWith('https://'),
   uiDir: config.uiDir ?? defaultUiDir(),
