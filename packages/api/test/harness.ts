@@ -18,6 +18,7 @@ import { CredentialStore } from '../src/settings/credentials.js';
 import type { HelmConfig } from '../src/settings/helm.js';
 import { SettingsService } from '../src/settings/service.js';
 import { Bootstrap } from '../src/setup/bootstrap.js';
+import { StatsService } from '../src/stats/service.js';
 import { TeamContextService } from '../src/team-context/service.js';
 import { FakeTracker } from '../src/tracker/fake.js';
 import { TrackerPoller } from '../src/tracker/poller.js';
@@ -123,6 +124,7 @@ export async function testApp(
     teamContext,
     orchestrator,
     trackerSync,
+    stats: new StatsService(db.pool),
     fakeClaude,
     secureCookies: false,
     version: 'test',

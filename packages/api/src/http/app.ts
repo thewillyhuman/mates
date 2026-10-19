@@ -19,6 +19,7 @@ import type { RunStarter } from '../runs/starter.js';
 import type { CredentialStore } from '../settings/credentials.js';
 import type { SettingsService } from '../settings/service.js';
 import type { Bootstrap } from '../setup/bootstrap.js';
+import type { StatsService } from '../stats/service.js';
 import type { TeamContextService } from '../team-context/service.js';
 import { registerErrorHandler, sendNotFound } from './errors.js';
 import { sessionPlugin } from './plugins/session.js';
@@ -27,6 +28,7 @@ import { healthRoutes, type ReadinessDeps } from './routes/health.js';
 import { internalRoutes } from './routes/internal.js';
 import { runsRoutes } from './routes/runs.js';
 import { settingsRoutes } from './routes/settings.js';
+import { statsRoutes } from './routes/stats.js';
 import { setupRoutes } from './routes/setup.js';
 import { webhookRoutes } from './routes/webhooks.js';
 
@@ -43,6 +45,7 @@ export interface AppDeps {
   readonly teamContext: TeamContextService;
   readonly orchestrator: Pick<Orchestrator, 'cancel' | 'pause' | 'resume' | 'retry'>;
   readonly trackerSync: Pick<TrackerSync, 'comment'>;
+  readonly stats: StatsService;
   readonly fakeClaude: boolean;
   readonly kubernetes?: ReadinessDeps['kubernetes'];
   /** Cookies are marked Secure when the public URL is https. */
@@ -105,6 +108,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     teamContext: deps.teamContext,
     integrations: deps.integrations,
   });
+  await statsRoutes(app, { stats: deps.stats, settings: deps.settings });
   await webhookRoutes(app, {
     settings: deps.settings,
     integrations: deps.integrations,

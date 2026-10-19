@@ -18,6 +18,7 @@ import { InMemorySecretStore } from '../src/secrets/store.js';
 import { CredentialStore } from '../src/settings/credentials.js';
 import { SettingsService } from '../src/settings/service.js';
 import { Bootstrap } from '../src/setup/bootstrap.js';
+import { StatsService } from '../src/stats/service.js';
 import { TeamContextService } from '../src/team-context/service.js';
 
 type Cookies = { cookies: { name: string; value: string }[] };
@@ -79,6 +80,7 @@ function stubDeps(db: TestDatabase, bootstrap: Bootstrap): Omit<AppDeps, 'uiDir'
       trackerSync: new TrackerSync({ integrations, log, publicUrl: 'http://mates.test' }),
     }),
     trackerSync: new TrackerSync({ integrations, log, publicUrl: 'http://mates.test' }),
+    stats: new StatsService(db.pool),
     fakeClaude: true,
     secureCookies: false,
     version: 'test',

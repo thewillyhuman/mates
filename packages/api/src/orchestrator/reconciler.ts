@@ -17,6 +17,7 @@ import type { EventBus } from '../runs/bus.js';
 import { appendEvents, projectRunById } from '../runs/events.js';
 import { listInvocations, markInvocationStatus, type Invocation } from '../runs/invocations.js';
 import { markNudgesConsumed } from '../runs/nudges.js';
+import { insertUsage, usageRowsFromResult } from '../runs/usage.js';
 import {
   findRun,
   findTicket,
@@ -350,24 +351,42 @@ export class Orchestrator {
     return r.rows[0]?.result_json ?? null;
   }
 
-  /** §9.1: the final result is the source of usage; M5 adds the computed cost. */
+  /**
+   * §9.1: the final result is the source of usage. Writes the ledger rows
+   * (reported and computed cost) and emits `usage.recorded`; the event's
+   * `cost_usd` falls back to the computed cost when Claude reported none.
+   */
   protected async recordUsage(
     ctx: RunContext,
     inv: Invocation,
     result: ClaudeResult | null,
   ): Promise<void> {
-    if (!result?.usage && result?.total_cost_usd === undefined) return;
-    const u = result.usage ?? {};
+    if (!result || (!result.usage && result.total_cost_usd === undefined && !result.modelUsage))
+      return;
+    const settings = await this.deps.settings.get();
+    const rows = usageRowsFromResult(
+      { id: inv.id, runId: ctx.run.id, model: inv.model },
+      result,
+      settings.pricing,
+    );
+    for (const row of rows) await insertUsage(this.deps.db, row);
+    const sum = (f: (r: (typeof rows)[number]) => number) => rows.reduce((a, r) => a + f(r), 0);
+    const reported = rows.some((r) => r.costReported !== null)
+      ? sum((r) => r.costReported ?? 0)
+      : null;
+    const computed = rows.every((r) => r.costComputed !== null)
+      ? sum((r) => r.costComputed ?? 0)
+      : null;
     await appendEvents(this.deps.db, this.deps.bus, ctx.run.id, [
       {
         type: 'usage.recorded',
         payload: {
-          model: inv.model,
-          input_tokens: u.input_tokens ?? 0,
-          output_tokens: u.output_tokens ?? 0,
-          cache_read_tokens: u.cache_read_input_tokens ?? 0,
-          cache_write_tokens: u.cache_creation_input_tokens ?? 0,
-          cost_usd: result.total_cost_usd ?? null,
+          model: rows.length === 1 ? rows[0]!.model : inv.model,
+          input_tokens: sum((r) => r.tokens.input_tokens),
+          output_tokens: sum((r) => r.tokens.output_tokens),
+          cache_read_tokens: sum((r) => r.tokens.cache_read_tokens),
+          cache_write_tokens: sum((r) => r.tokens.cache_write_tokens),
+          cost_usd: reported ?? computed,
         },
         invocation_id: inv.id,
       },

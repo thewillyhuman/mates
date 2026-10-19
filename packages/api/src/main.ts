@@ -22,6 +22,7 @@ import { CredentialStore } from './settings/credentials.js';
 import { readHelmConfig } from './settings/helm.js';
 import { SettingsService } from './settings/service.js';
 import { Bootstrap } from './setup/bootstrap.js';
+import { StatsService } from './stats/service.js';
 import { TeamContextService } from './team-context/service.js';
 import { TrackerPoller } from './tracker/poller.js';
 
@@ -121,6 +122,7 @@ const app = await buildApp({
   teamContext,
   orchestrator,
   trackerSync,
+  stats: new StatsService(pool),
   fakeClaude: config.fakeClaude,
   kubernetes,
   secureCookies: config.publicUrl.startsWith('https://'),
