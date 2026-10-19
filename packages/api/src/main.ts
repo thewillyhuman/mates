@@ -10,6 +10,7 @@ import { Integrations } from './integrations.js';
 import { FakeJobsClient, KubernetesJobsClient, type JobsClient } from './kubernetes/jobs.js';
 import { createLogger } from './logger.js';
 import { Metrics } from './metrics.js';
+import { Retention } from './retention.js';
 import { AnthropicTest } from './orchestrator/anthropic-test.js';
 import { MergeRequests } from './orchestrator/merge-requests.js';
 import { JobMonitor } from './orchestrator/monitor.js';
@@ -110,6 +111,7 @@ const orchestrator = new Orchestrator({
 const monitor = new JobMonitor({ db: pool, bus, jobs, log });
 const metrics = new Metrics();
 metrics.subscribe(bus);
+const retention = new Retention({ db: pool, settings, log });
 const starter = new RunStarter({ db: pool, bus, settings, integrations, log });
 const poller = new TrackerPoller({
   db: pool,
@@ -156,6 +158,7 @@ const shutdown = async (signal: string): Promise<void> => {
   orchestrator.stop();
   monitor.stop();
   poller.stop();
+  retention.stop();
   await app.close();
   await pool.end();
   process.exit(0);
@@ -167,6 +170,7 @@ await app.listen({ host: config.host, port: config.port });
 orchestrator.start();
 monitor.start();
 poller.start();
+retention.start();
 setInterval(() => void metrics.refreshQueueDepth(pool).catch(() => undefined), 15_000).unref();
 log.info({ port: config.port, version }, 'mates-api listening');
 
