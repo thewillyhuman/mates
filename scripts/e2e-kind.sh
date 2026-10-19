@@ -10,6 +10,11 @@ API_TAG="${1:-smoke}"
 RUNNER_TAG="${2:-smoke}"
 NS="${MATES_SMOKE_NAMESPACE:-mates}"
 RELEASE="mates"
+# Ticket keys carry a per-execution suffix so reruns on the same cluster never
+# share a run or a branch. MATES_E2E_RESET=1 reinstalls Mates on a clean
+# database first (local reruns; CI clusters are always fresh).
+SUFFIX="$(date +%s | tail -c 5)"
+K() { printf 'API-%s%s' "$1" "$SUFFIX"; }
 GITEA_USER="mates"
 GITEA_PASS="e2e-password-123"
 ADMIN_EMAIL="admin@example.com"
@@ -19,6 +24,15 @@ trap 'kill $(jobs -p) 2>/dev/null || true; rm -rf "$WORK"' EXIT
 
 log() { printf '\n==> %s\n' "$*"; }
 api() { curl -sS -b "$WORK/jar" -c "$WORK/jar" -H "x-csrf-token: ${CSRF:-}" "$@"; }
+
+if [ "${MATES_E2E_RESET:-0}" = "1" ]; then
+  log "resetting the mates install"
+  helm -n "$NS" uninstall "$RELEASE" >/dev/null 2>&1 || true
+  kubectl -n "$NS" delete pvc -l app.kubernetes.io/instance="$RELEASE" --ignore-not-found >/dev/null
+  kubectl -n "$NS" delete secret "$RELEASE-bootstrap" "$RELEASE-internal" "$RELEASE-credentials" "$RELEASE-postgresql" --ignore-not-found >/dev/null
+  kubectl -n "$NS" delete jobs -l app.kubernetes.io/name=mates-runner --ignore-not-found >/dev/null 2>&1 || true
+  scripts/kind-smoke.sh "$API_TAG" "$RUNNER_TAG" >/dev/null
+fi
 
 # ---------------------------------------------------------------- Gitea
 log "deploying gitea"
@@ -70,22 +84,23 @@ api -X POST http://localhost:18080/api/settings/team-context -H 'content-type: a
 
 # ---------------------------------------------------------------- Run
 log "triggering a run"
-RUN_ID="$(api -X POST http://localhost:18080/api/runs -H 'content-type: application/json' -d '{"ticket_key":"API-198"}' \
+RUN_ID="$(api -X POST http://localhost:18080/api/runs -H 'content-type: application/json' -d "{\"ticket_key\":\"$(K 198)\"}" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 echo "run $RUN_ID"
 
-status() { api "http://localhost:18080/api/runs/$RUN_ID" | python3 -c '
+# The intake invocation is the first one; the loop continues past it (M4).
+intake_status() { api "http://localhost:18080/api/runs/$RUN_ID" | python3 -c '
 import json,sys
 p=json.load(sys.stdin)["projection"]
-inv=p["invocations"][-1] if p["invocations"] else None
+inv=p["invocations"][0] if p["invocations"] else None
 print(p["stage"], inv["status"] if inv else "-", inv["jobName"] if inv else "-")'; }
 
 for i in $(seq 1 120); do
-  read -r STAGE INV_STATUS JOB <<<"$(status)"
+  read -r STAGE INV_STATUS JOB <<<"$(intake_status)"
   [ "$INV_STATUS" = "succeeded" ] || [ "$INV_STATUS" = "failed" ] && break
   sleep 2
 done
-echo "stage=$STAGE invocation=$INV_STATUS job=$JOB"
+echo "stage=$STAGE intake=$INV_STATUS job=$JOB"
 kubectl -n "$NS" get pods -l "mates/run=$RUN_ID" -o wide || true
 if [ "$INV_STATUS" != "succeeded" ]; then
   kubectl -n "$NS" logs -l "mates/run=$RUN_ID" --tail=50 || true
@@ -112,7 +127,7 @@ import json,sys
 ev=json.load(sys.stdin)["events"]; types=[e["type"] for e in ev]
 for t in ["run.created","run.stage_changed","invocation.scheduled","invocation.started","invocation.tool_use","invocation.text","invocation.finished"]:
     assert t in types, (t, types)
-fin=[e for e in ev if e["type"]=="invocation.finished"][-1]["payload"]
+fin=[e for e in ev if e["type"]=="invocation.finished"][0]["payload"]
 assert fin["exit_code"]==0, fin
 assert fin["result"]["structured_output"]["decision"]=="implementable", fin["result"]
 assert fin["transcript_ref"], "transcript blob missing"
@@ -125,7 +140,7 @@ echo "no token leak"
 
 # ---------------------------------------------------------------- Cancel
 log "cancelling a second run while its invocation is live"
-RUN2="$(api -X POST http://localhost:18080/api/runs -H 'content-type: application/json' -d '{"ticket_key":"API-199"}' \
+RUN2="$(api -X POST http://localhost:18080/api/runs -H 'content-type: application/json' -d "{\"ticket_key\":\"$(K 199)\"}" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 for _ in $(seq 1 30); do
   JOB2="$(kubectl -n "$NS" get jobs -l "mates/run=$RUN2" -o name 2>/dev/null | head -1)"
@@ -140,5 +155,72 @@ for _ in $(seq 1 30); do
 done
 kubectl -n "$NS" get "$JOB2" >/dev/null 2>&1 && { echo "job still exists after cancel"; exit 1; }
 echo "cancel ok"
+
+# ---------------------------------------------------------------- The loop (M4)
+# Each scenario sets the fake fixtures per mate, triggers a run and waits for
+# a terminal or blocked stage, then checks the pull request on Gitea.
+gitea_api() { curl -sS -u "$GITEA_USER:$GITEA_PASS" "http://localhost:13000/api/v1$1"; }
+pr_for_branch() { gitea_api "/repos/$GITEA_USER/webhook-service/pulls?state=all&limit=50" | python3 -c "
+import json,sys
+prs=[p for p in json.load(sys.stdin) if p['head']['ref']=='$1']
+print(json.dumps(prs[0]) if prs else '')"; }
+
+scenario() {  # <key> <intake-json> <implementer-json> <reviewer-json> <max_iterations> <expected stage>
+  local key="$1" intake="$2" impl="$3" rev="$4" maxit="$5" expected="$6"
+  log "scenario $key → expect $expected"
+  api -X PUT http://localhost:18080/api/settings -H 'content-type: application/json' \
+    -d "{\"fake_claude\":{\"scenarios\":{\"intake\":$intake,\"implementer\":$impl,\"reviewer\":$rev}},\"limits\":{\"max_iterations\":$maxit}}" >/dev/null
+  SCENARIO_RUN="$(api -X POST http://localhost:18080/api/runs -H 'content-type: application/json' -d "{\"ticket_key\":\"$key\"}" \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+  local stage="" i
+  for i in $(seq 1 240); do
+    stage="$(api "http://localhost:18080/api/runs/$SCENARIO_RUN" | python3 -c 'import json,sys; print(json.load(sys.stdin)["projection"]["stage"])')"
+    case "$stage" in done|failed|cancelled|blocked) break ;; esac
+    sleep 3
+  done
+  api "http://localhost:18080/api/runs/$SCENARIO_RUN" | python3 -c "
+import json,sys
+p=json.load(sys.stdin)['projection']
+print('  stage=%s iteration=%s verdicts=%s cost=%.4f mr=%s' % (p['stage'], p['iteration'], [v['decision'] for v in p['verdicts']], p['usage']['costUsd'], (p['mr'] or {}).get('url')))
+assert p['stage']=='$expected', 'expected $expected, got ' + p['stage']"
+  SCENARIO_BRANCH="$(api "http://localhost:18080/api/runs/$SCENARIO_RUN" | python3 -c 'import json,sys; print(json.load(sys.stdin)["branch"])')"
+}
+
+scenario "$(K 301)" '["intake_implementable"]' '["impl_iter1_green"]' '["review_approve"]' 4 done
+pr_for_branch "$SCENARIO_BRANCH" | python3 -c "
+import json,sys; pr=json.loads(sys.stdin.read() or 'null'); assert pr, 'no pull request for the branch'
+assert not pr['title'].startswith('WIP'), pr['title']; assert pr['state']=='open'
+assert '## Review' in pr['body'] and 'Generated by Mates' in pr['body'], pr['body'][:200]
+print('  pull request #%d ready: %s' % (pr['number'], pr['title']))"
+gitea_api "/repos/$GITEA_USER/webhook-service/branches/$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$SCENARIO_BRANCH")" | grep -q '"name"' && echo "  branch pushed"
+
+scenario "$(K 302)" '["intake_implementable"]' '["impl_iter1_green","impl_iter2_addressed","impl_iter2_addressed"]' '["review_changes_requested_2_blocking","review_changes_requested_2_blocking","review_approve"]' 4 done
+api "http://localhost:18080/api/runs/$SCENARIO_RUN" | python3 -c "
+import json,sys; p=json.load(sys.stdin)['projection']; assert p['iteration']==3, p['iteration']; print('  approved on iteration 3')"
+
+scenario "$(K 303)" '["intake_implementable"]' '["impl_iter1_green"]' '["review_changes_requested_2_blocking"]' 2 blocked
+api "http://localhost:18080/api/runs/$SCENARIO_RUN" | python3 -c "
+import json,sys; p=json.load(sys.stdin)['projection']; assert p['iteration']==2 and p['maxIterations']==2, (p['iteration'], p['maxIterations'])"
+pr_for_branch "$SCENARIO_BRANCH" | python3 -c "
+import json,sys; pr=json.loads(sys.stdin.read() or 'null'); assert pr, 'no pull request'
+assert pr['title'].startswith('WIP:'), pr['title']; assert 'Unresolved review points' in pr['body']
+print('  draft stays open with unresolved points: %s' % pr['title'])"
+
+scenario "$(K 304)" '["intake_needs_clarification","intake_implementable"]' '["impl_iter1_green"]' '["review_approve"]' 4 blocked
+api -X POST "http://localhost:18080/api/runs/$SCENARIO_RUN/nudges" -H 'content-type: application/json' \
+  -d '{"text":"Free tier is 100 req/min.","post_to_tracker":false,"and_retry":true}' >/dev/null
+for i in $(seq 1 240); do
+  stage="$(api "http://localhost:18080/api/runs/$SCENARIO_RUN" | python3 -c 'import json,sys; print(json.load(sys.stdin)["projection"]["stage"])')"
+  case "$stage" in done|failed|cancelled) break ;; esac
+  sleep 3
+done
+api "http://localhost:18080/api/runs/$SCENARIO_RUN" | python3 -c "
+import json,sys; p=json.load(sys.stdin)['projection']
+assert p['stage']=='done', p['stage']; assert p['clarificationRounds']==1
+print('  clarification answered, then done (%d iteration)' % p['iteration'])"
+
+scenario "$(K 305)" '["intake_implementable"]' '["impl_empty_diff"]' '["review_approve"]' 4 failed
+api "http://localhost:18080/api/runs/$SCENARIO_RUN" | python3 -c "
+import json,sys; p=json.load(sys.stdin)['projection']; assert p['failure']['reason']=='empty_diff', p['failure']; print('  failed: empty_diff after two empty iterations')"
 
 log "e2e passed"
