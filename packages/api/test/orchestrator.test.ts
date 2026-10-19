@@ -291,6 +291,7 @@ describe('orchestrator (M2 scope)', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json<Detail>().projection.stage).toBe('cancelled');
+    expect(res.json<Detail>().projection.currentInvocation).toBeNull();
     expect(t.jobs.deleted).toContain(inv.jobName);
     const rows = await t.db.pool.query<{ status: string }>(
       'SELECT status FROM invocations WHERE id = $1',

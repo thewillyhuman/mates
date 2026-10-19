@@ -884,13 +884,20 @@ export class Orchestrator {
     const ctx = await this.load(runId);
     if (!ctx) throw new Error('run not found');
     if (isTerminal(ctx.projection.stage)) return ctx.projection;
+    const stopped: NewEvent[] = [];
     for (const inv of ctx.invocations) {
       if (inv.status === 'pending' || inv.status === 'running') {
         await this.deps.spawner.kill(inv.id);
         await markInvocationStatus(this.deps.db, inv.id, 'cancelled');
+        // The log must say the invocation ended, or the projection keeps it "running".
+        stopped.push({
+          type: 'invocation.failed',
+          payload: { reason: 'cancelled', detail: `cancelled by ${by}` },
+          invocation_id: inv.id,
+        });
       }
     }
-    await this.append(ctx, [{ type: 'run.cancelled', payload: { by, reason } }]);
+    await this.append(ctx, [...stopped, { type: 'run.cancelled', payload: { by, reason } }]);
     await this.transition(ctx, 'cancelled', reason || 'cancelled');
     return ctx.projection;
   }
