@@ -1,4 +1,4 @@
-import type { RunProjection } from '@mates/core';
+import { BLOCKED_REASONS, STAGES, type RunProjection } from '@mates/core';
 import { z } from 'zod';
 import type { RunDetail } from './repository.js';
 
@@ -20,9 +20,9 @@ export const runSummarySchema = z.object({
   ticket: ticketSchema,
   repo: z.string().nullable(),
   branch: z.string().nullable(),
-  stage: z.string(),
+  stage: z.enum(STAGES),
   stageChangedAt: z.string(),
-  blockedReason: z.string().nullable(),
+  blockedReason: z.enum(BLOCKED_REASONS).nullable(),
   paused: z.boolean(),
   iteration: z.number(),
   maxIterations: z.number(),

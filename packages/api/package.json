@@ -19,7 +19,8 @@
     "test:watch": "vitest",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
-    "migrate": "tsx src/db/migrate-cli.ts"
+    "migrate": "tsx src/db/migrate-cli.ts",
+    "openapi": "tsx scripts/openapi.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

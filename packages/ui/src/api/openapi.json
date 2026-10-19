@@ -1,0 +1,2925 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Mates API",
+    "version": "dev"
+  },
+  "components": {
+    "schemas": {}
+  },
+  "paths": {
+    "/api/openapi.json": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/setup/status": {
+      "get": {
+        "tags": ["setup"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "setupRequired": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["setupRequired"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/bootstrap": {
+      "post": {
+        "tags": ["setup"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 10
+                  }
+                },
+                "required": ["token", "email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["id", "email", "role"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": ["viewer", "operator", "admin"]
+                    },
+                    "auth": {
+                      "type": "string",
+                      "enum": ["local", "oidc"]
+                    }
+                  },
+                  "required": ["id", "email", "displayName", "role", "auth"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": ["auth"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": ["viewer", "operator", "admin"]
+                    },
+                    "auth": {
+                      "type": "string",
+                      "enum": ["local", "oidc"]
+                    }
+                  },
+                  "required": ["id", "email", "displayName", "role", "auth"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs": {
+      "get": {
+        "tags": ["runs"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "intake",
+                "implementing",
+                "reviewing",
+                "mr_ready",
+                "blocked",
+                "cancelled",
+                "failed",
+                "done"
+              ]
+            },
+            "in": "query",
+            "name": "stage",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 200,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "cursor",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "runs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "ticket": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "key": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": ["string", "null"]
+                              },
+                              "projectKey": {
+                                "type": ["string", "null"]
+                              },
+                              "repoId": {
+                                "type": ["string", "null"]
+                              }
+                            },
+                            "required": ["id", "key", "title", "url", "projectKey", "repoId"],
+                            "additionalProperties": false
+                          },
+                          "repo": {
+                            "type": ["string", "null"]
+                          },
+                          "branch": {
+                            "type": ["string", "null"]
+                          },
+                          "stage": {
+                            "type": "string",
+                            "enum": [
+                              "queued",
+                              "intake",
+                              "implementing",
+                              "reviewing",
+                              "mr_ready",
+                              "blocked",
+                              "cancelled",
+                              "failed",
+                              "done"
+                            ]
+                          },
+                          "stageChangedAt": {
+                            "type": "string"
+                          },
+                          "blockedReason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": ["needs_clarification", "iteration_cap", "budget_exceeded"]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "paused": {
+                            "type": "boolean"
+                          },
+                          "iteration": {
+                            "type": "number"
+                          },
+                          "maxIterations": {
+                            "type": "number"
+                          },
+                          "currentAction": {
+                            "type": "string"
+                          },
+                          "currentMate": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "finishedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "mr": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "url": {
+                                    "type": "string"
+                                  },
+                                  "draft": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": ["id", "url", "draft"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "costUsd": {
+                            "type": "number"
+                          },
+                          "tokens": {
+                            "type": "number"
+                          },
+                          "lastVerdict": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "decision": {
+                                    "type": "string"
+                                  },
+                                  "blocking": {
+                                    "type": "number"
+                                  },
+                                  "nonBlocking": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": ["decision", "blocking", "nonBlocking"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "questions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "ticket",
+                          "repo",
+                          "branch",
+                          "stage",
+                          "stageChangedAt",
+                          "blockedReason",
+                          "paused",
+                          "iteration",
+                          "maxIterations",
+                          "currentAction",
+                          "currentMate",
+                          "createdAt",
+                          "finishedAt",
+                          "mr",
+                          "costUsd",
+                          "tokens",
+                          "lastVerdict",
+                          "questions"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["runs"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["runs"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ticket_key": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]+-\\d+$"
+                  }
+                },
+                "required": ["ticket_key"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticket": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": ["string", "null"]
+                        },
+                        "projectKey": {
+                          "type": ["string", "null"]
+                        },
+                        "repoId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "key", "title", "url", "projectKey", "repoId"],
+                      "additionalProperties": false
+                    },
+                    "branch": {
+                      "type": ["string", "null"]
+                    },
+                    "baseBranch": {
+                      "type": ["string", "null"]
+                    },
+                    "teamContextVersion": {
+                      "type": ["number", "null"]
+                    },
+                    "projection": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ticket",
+                    "branch",
+                    "baseBranch",
+                    "teamContextVersion",
+                    "projection"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticket": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": ["string", "null"]
+                        },
+                        "projectKey": {
+                          "type": ["string", "null"]
+                        },
+                        "repoId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "key", "title", "url", "projectKey", "repoId"],
+                      "additionalProperties": false
+                    },
+                    "branch": {
+                      "type": ["string", "null"]
+                    },
+                    "baseBranch": {
+                      "type": ["string", "null"]
+                    },
+                    "teamContextVersion": {
+                      "type": ["number", "null"]
+                    },
+                    "projection": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ticket",
+                    "branch",
+                    "baseBranch",
+                    "teamContextVersion",
+                    "projection"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}": {
+      "get": {
+        "tags": ["runs"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticket": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": ["string", "null"]
+                        },
+                        "projectKey": {
+                          "type": ["string", "null"]
+                        },
+                        "repoId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "key", "title", "url", "projectKey", "repoId"],
+                      "additionalProperties": false
+                    },
+                    "branch": {
+                      "type": ["string", "null"]
+                    },
+                    "baseBranch": {
+                      "type": ["string", "null"]
+                    },
+                    "teamContextVersion": {
+                      "type": ["number", "null"]
+                    },
+                    "projection": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ticket",
+                    "branch",
+                    "baseBranch",
+                    "teamContextVersion",
+                    "projection"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/events": {
+      "get": {
+        "tags": ["runs"],
+        "parameters": [
+          {
+            "schema": {
+              "default": 0,
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "after",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 1000,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "number"
+                          },
+                          "run_id": {
+                            "type": "string"
+                          },
+                          "invocation_id": {
+                            "type": ["string", "null"]
+                          },
+                          "ts": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "payload": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        },
+                        "required": ["id", "run_id", "invocation_id", "ts", "type", "payload"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "next_after": {
+                      "type": ["number", "null"]
+                    }
+                  },
+                  "required": ["events", "next_after"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/cancel": {
+      "post": {
+        "tags": ["runs"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "default": {
+                  "reason": ""
+                },
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "default": "",
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticket": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": ["string", "null"]
+                        },
+                        "projectKey": {
+                          "type": ["string", "null"]
+                        },
+                        "repoId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "key", "title", "url", "projectKey", "repoId"],
+                      "additionalProperties": false
+                    },
+                    "branch": {
+                      "type": ["string", "null"]
+                    },
+                    "baseBranch": {
+                      "type": ["string", "null"]
+                    },
+                    "teamContextVersion": {
+                      "type": ["number", "null"]
+                    },
+                    "projection": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ticket",
+                    "branch",
+                    "baseBranch",
+                    "teamContextVersion",
+                    "projection"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/pause": {
+      "post": {
+        "tags": ["runs"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticket": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": ["string", "null"]
+                        },
+                        "projectKey": {
+                          "type": ["string", "null"]
+                        },
+                        "repoId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "key", "title", "url", "projectKey", "repoId"],
+                      "additionalProperties": false
+                    },
+                    "branch": {
+                      "type": ["string", "null"]
+                    },
+                    "baseBranch": {
+                      "type": ["string", "null"]
+                    },
+                    "teamContextVersion": {
+                      "type": ["number", "null"]
+                    },
+                    "projection": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ticket",
+                    "branch",
+                    "baseBranch",
+                    "teamContextVersion",
+                    "projection"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/resume": {
+      "post": {
+        "tags": ["runs"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticket": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": ["string", "null"]
+                        },
+                        "projectKey": {
+                          "type": ["string", "null"]
+                        },
+                        "repoId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "key", "title", "url", "projectKey", "repoId"],
+                      "additionalProperties": false
+                    },
+                    "branch": {
+                      "type": ["string", "null"]
+                    },
+                    "baseBranch": {
+                      "type": ["string", "null"]
+                    },
+                    "teamContextVersion": {
+                      "type": ["number", "null"]
+                    },
+                    "projection": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ticket",
+                    "branch",
+                    "baseBranch",
+                    "teamContextVersion",
+                    "projection"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/retry": {
+      "post": {
+        "tags": ["runs"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "budget_usd": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticket": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": ["string", "null"]
+                        },
+                        "projectKey": {
+                          "type": ["string", "null"]
+                        },
+                        "repoId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "key", "title", "url", "projectKey", "repoId"],
+                      "additionalProperties": false
+                    },
+                    "branch": {
+                      "type": ["string", "null"]
+                    },
+                    "baseBranch": {
+                      "type": ["string", "null"]
+                    },
+                    "teamContextVersion": {
+                      "type": ["number", "null"]
+                    },
+                    "projection": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ticket",
+                    "branch",
+                    "baseBranch",
+                    "teamContextVersion",
+                    "projection"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/nudges": {
+      "post": {
+        "tags": ["runs"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  },
+                  "post_to_tracker": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "and_retry": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                },
+                "required": ["text"]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticket": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": ["string", "null"]
+                        },
+                        "projectKey": {
+                          "type": ["string", "null"]
+                        },
+                        "repoId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "key", "title", "url", "projectKey", "repoId"],
+                      "additionalProperties": false
+                    },
+                    "branch": {
+                      "type": ["string", "null"]
+                    },
+                    "baseBranch": {
+                      "type": ["string", "null"]
+                    },
+                    "teamContextVersion": {
+                      "type": ["number", "null"]
+                    },
+                    "projection": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ticket",
+                    "branch",
+                    "baseBranch",
+                    "teamContextVersion",
+                    "projection"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/invocations/{id}/events": {
+      "post": {
+        "tags": ["internal"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "minItems": 1,
+                "maxItems": 200,
+                "type": "array",
+                "items": {}
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accepted": {
+                      "type": "number"
+                    },
+                    "dropped": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["accepted", "dropped"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/invocations/{id}/blobs/{kind}": {
+      "post": {
+        "tags": ["internal"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["tests_log", "diff", "transcript"]
+            },
+            "in": "path",
+            "name": "kind",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["id"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "tags": ["settings"],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "put": {
+        "tags": ["settings"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/settings/credentials/{name}": {
+      "get": {
+        "tags": ["settings"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_token)$"
+            },
+            "in": "path",
+            "name": "name",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "set": {
+                      "type": "boolean"
+                    },
+                    "set_at": {
+                      "type": ["string", "null"]
+                    },
+                    "last_validated_at": {
+                      "type": ["string", "null"]
+                    },
+                    "read_only": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["name", "set", "set_at", "last_validated_at", "read_only"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["settings"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["value"]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_token)$"
+            },
+            "in": "path",
+            "name": "name",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "set": {
+                      "type": "boolean"
+                    },
+                    "set_at": {
+                      "type": ["string", "null"]
+                    },
+                    "last_validated_at": {
+                      "type": ["string", "null"]
+                    },
+                    "read_only": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["name", "set", "set_at", "last_validated_at", "read_only"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["settings"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_token)$"
+            },
+            "in": "path",
+            "name": "name",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/settings/credentials/{name}/test": {
+      "post": {
+        "tags": ["settings"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_token)$"
+            },
+            "in": "path",
+            "name": "name",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "default": {},
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": ["ok", "message", "details"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/team-context": {
+      "get": {
+        "tags": ["settings"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "active": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "number"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": ["git", "upload"]
+                            },
+                            "ref": {
+                              "type": ["string", "null"]
+                            },
+                            "manifest": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "errors": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "fetchedAt": {
+                              "type": "string"
+                            },
+                            "active": {
+                              "type": "boolean"
+                            },
+                            "createdBy": {
+                              "type": ["string", "null"]
+                            },
+                            "sizeBytes": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "version",
+                            "source",
+                            "ref",
+                            "manifest",
+                            "errors",
+                            "fetchedAt",
+                            "active",
+                            "createdBy",
+                            "sizeBytes"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "versions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "number"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": ["git", "upload"]
+                          },
+                          "ref": {
+                            "type": ["string", "null"]
+                          },
+                          "manifest": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "errors": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "fetchedAt": {
+                            "type": "string"
+                          },
+                          "active": {
+                            "type": "boolean"
+                          },
+                          "createdBy": {
+                            "type": ["string", "null"]
+                          },
+                          "sizeBytes": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "version",
+                          "source",
+                          "ref",
+                          "manifest",
+                          "errors",
+                          "fetchedAt",
+                          "active",
+                          "createdBy",
+                          "sizeBytes"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["active", "versions"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["settings"],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "number"
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["git", "upload"]
+                    },
+                    "ref": {
+                      "type": ["string", "null"]
+                    },
+                    "manifest": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "fetchedAt": {
+                      "type": "string"
+                    },
+                    "active": {
+                      "type": "boolean"
+                    },
+                    "createdBy": {
+                      "type": ["string", "null"]
+                    },
+                    "sizeBytes": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version",
+                    "source",
+                    "ref",
+                    "manifest",
+                    "errors",
+                    "fetchedAt",
+                    "active",
+                    "createdBy",
+                    "sizeBytes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/team-context/{id}": {
+      "get": {
+        "tags": ["settings"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "number"
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["git", "upload"]
+                    },
+                    "ref": {
+                      "type": ["string", "null"]
+                    },
+                    "manifest": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "fetchedAt": {
+                      "type": "string"
+                    },
+                    "active": {
+                      "type": "boolean"
+                    },
+                    "createdBy": {
+                      "type": ["string", "null"]
+                    },
+                    "sizeBytes": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version",
+                    "source",
+                    "ref",
+                    "manifest",
+                    "errors",
+                    "fetchedAt",
+                    "active",
+                    "createdBy",
+                    "sizeBytes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/pricing": {
+      "get": {
+        "tags": ["settings"],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "put": {
+        "tags": ["settings"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "input_per_mtok": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "output_per_mtok": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cache_read_per_mtok": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cache_write_per_mtok": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "default": "USD",
+                      "type": "string",
+                      "enum": ["USD"]
+                    }
+                  },
+                  "required": [
+                    "input_per_mtok",
+                    "output_per_mtok",
+                    "cache_read_per_mtok",
+                    "cache_write_per_mtok"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/settings/prompts/{mate}": {
+      "get": {
+        "tags": ["settings"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["system", "intake", "implementer", "reviewer"]
+            },
+            "in": "path",
+            "name": "mate",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "template": {
+                      "type": "string"
+                    },
+                    "default": {
+                      "type": "string"
+                    },
+                    "overridden": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["name", "template", "default", "overridden"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["settings"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "template": {
+                    "type": ["string", "null"]
+                  }
+                },
+                "required": ["template"]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["system", "intake", "implementer", "reviewer"]
+            },
+            "in": "path",
+            "name": "mate",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "tags": ["stats"],
+        "parameters": [
+          {
+            "schema": {},
+            "in": "query",
+            "name": "from",
+            "required": false
+          },
+          {
+            "schema": {},
+            "in": "query",
+            "name": "to",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "day",
+              "type": "string",
+              "enum": ["day", "week", "month", "mate", "model", "run", "ticket", "repo", "project"]
+            },
+            "in": "query",
+            "name": "group_by",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "group_by": {
+                      "type": "string"
+                    },
+                    "buckets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "cost_usd": {
+                            "type": "number"
+                          },
+                          "cost_usd_computed": {
+                            "type": ["number", "null"]
+                          },
+                          "input_tokens": {
+                            "type": "number"
+                          },
+                          "output_tokens": {
+                            "type": "number"
+                          },
+                          "cache_read_tokens": {
+                            "type": "number"
+                          },
+                          "cache_write_tokens": {
+                            "type": "number"
+                          },
+                          "invocations": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "cost_usd",
+                          "cost_usd_computed",
+                          "input_tokens",
+                          "output_tokens",
+                          "cache_read_tokens",
+                          "cache_write_tokens",
+                          "invocations"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["from", "to", "group_by", "buckets", "note"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stats/outcomes": {
+      "get": {
+        "tags": ["stats"],
+        "parameters": [
+          {
+            "schema": {},
+            "in": "query",
+            "name": "from",
+            "required": false
+          },
+          {
+            "schema": {},
+            "in": "query",
+            "name": "to",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/stats/board": {
+      "get": {
+        "tags": ["stats"],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/tickets": {
+      "get": {
+        "tags": ["tickets"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "project",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "repo",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "intake",
+                "implementing",
+                "reviewing",
+                "mr_ready",
+                "blocked",
+                "cancelled",
+                "failed",
+                "done"
+              ]
+            },
+            "in": "query",
+            "name": "stage",
+            "required": false
+          },
+          {
+            "schema": {},
+            "in": "query",
+            "name": "from",
+            "required": false
+          },
+          {
+            "schema": {},
+            "in": "query",
+            "name": "to",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "q",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 200,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "query",
+            "name": "cursor",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tickets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": ["string", "null"]
+                          },
+                          "projectKey": {
+                            "type": ["string", "null"]
+                          },
+                          "repoId": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "runs": {
+                            "type": "number"
+                          },
+                          "latestRun": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "stage": {
+                                    "type": "string"
+                                  },
+                                  "iteration": {
+                                    "type": "number"
+                                  },
+                                  "maxIterations": {
+                                    "type": "number"
+                                  },
+                                  "costUsd": {
+                                    "type": "number"
+                                  },
+                                  "mrUrl": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "mrState": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "createdAt": {
+                                    "type": "string"
+                                  },
+                                  "finishedAt": {
+                                    "type": ["string", "null"]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "stage",
+                                  "iteration",
+                                  "maxIterations",
+                                  "costUsd",
+                                  "mrUrl",
+                                  "mrState",
+                                  "createdAt",
+                                  "finishedAt"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "key",
+                          "title",
+                          "url",
+                          "projectKey",
+                          "repoId",
+                          "createdAt",
+                          "runs",
+                          "latestRun"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["tickets"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tickets/{key}": {
+      "get": {
+        "tags": ["tickets"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ticket": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": ["string", "null"]
+                        },
+                        "projectKey": {
+                          "type": ["string", "null"]
+                        },
+                        "repoId": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "key",
+                        "title",
+                        "url",
+                        "projectKey",
+                        "repoId",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "runs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "ticket": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "key": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": ["string", "null"]
+                              },
+                              "projectKey": {
+                                "type": ["string", "null"]
+                              },
+                              "repoId": {
+                                "type": ["string", "null"]
+                              }
+                            },
+                            "required": ["id", "key", "title", "url", "projectKey", "repoId"],
+                            "additionalProperties": false
+                          },
+                          "repo": {
+                            "type": ["string", "null"]
+                          },
+                          "branch": {
+                            "type": ["string", "null"]
+                          },
+                          "stage": {
+                            "type": "string",
+                            "enum": [
+                              "queued",
+                              "intake",
+                              "implementing",
+                              "reviewing",
+                              "mr_ready",
+                              "blocked",
+                              "cancelled",
+                              "failed",
+                              "done"
+                            ]
+                          },
+                          "stageChangedAt": {
+                            "type": "string"
+                          },
+                          "blockedReason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": ["needs_clarification", "iteration_cap", "budget_exceeded"]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "paused": {
+                            "type": "boolean"
+                          },
+                          "iteration": {
+                            "type": "number"
+                          },
+                          "maxIterations": {
+                            "type": "number"
+                          },
+                          "currentAction": {
+                            "type": "string"
+                          },
+                          "currentMate": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "finishedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "mr": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "url": {
+                                    "type": "string"
+                                  },
+                                  "draft": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": ["id", "url", "draft"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "costUsd": {
+                            "type": "number"
+                          },
+                          "tokens": {
+                            "type": "number"
+                          },
+                          "lastVerdict": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "decision": {
+                                    "type": "string"
+                                  },
+                                  "blocking": {
+                                    "type": "number"
+                                  },
+                                  "nonBlocking": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": ["decision", "blocking", "nonBlocking"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "questions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "ticket",
+                          "repo",
+                          "branch",
+                          "stage",
+                          "stageChangedAt",
+                          "blockedReason",
+                          "paused",
+                          "iteration",
+                          "maxIterations",
+                          "currentAction",
+                          "currentMate",
+                          "createdAt",
+                          "finishedAt",
+                          "mr",
+                          "costUsd",
+                          "tokens",
+                          "lastVerdict",
+                          "questions"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["ticket", "runs"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": ["users"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": ["viewer", "operator", "admin"]
+                          },
+                          "auth": {
+                            "type": "string",
+                            "enum": ["local", "oidc"]
+                          }
+                        },
+                        "required": ["id", "email", "displayName", "role", "auth"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["users"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["users"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": ["viewer", "operator", "admin"]
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 10
+                  }
+                },
+                "required": ["email", "displayName", "role", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": ["viewer", "operator", "admin"]
+                    },
+                    "auth": {
+                      "type": "string",
+                      "enum": ["local", "oidc"]
+                    }
+                  },
+                  "required": ["id", "email", "displayName", "role", "auth"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "put": {
+        "tags": ["users"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": ["viewer", "operator", "admin"]
+                  }
+                },
+                "required": ["role"]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": ["viewer", "operator", "admin"]
+                    },
+                    "auth": {
+                      "type": "string",
+                      "enum": ["local", "oidc"]
+                    }
+                  },
+                  "required": ["id", "email", "displayName", "role", "auth"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["users"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/api-tokens": {
+      "get": {
+        "tags": ["users"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tokens": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "userEmail": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "lastUsedAt": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": ["id", "name", "userEmail", "createdAt", "lastUsedAt"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["tokens"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["users"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "token": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["id", "name", "token"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/api-tokens/{id}": {
+      "delete": {
+        "tags": ["users"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/webhooks/jira": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    }
+  }
+}
