@@ -1,0 +1,54 @@
+[
+  { "request": { "method": "GET", "url": "/rest/api/3/myself" }, "response": { "status": 200, "body": { "accountId": "5b10a2844c20165700ede21g", "emailAddress": "mates@example.com", "displayName": "Mates" } } },
+  {
+    "request": { "method": "POST", "url": "/rest/api/3/search/jql", "bodyIncludes": "assignee = \\\"mates@example.com\\\"" },
+    "response": {
+      "status": 200,
+      "body": { "issues": [
+        { "id": "10198", "key": "API-198", "fields": { "summary": "Retry policy for webhook delivery", "updated": "2026-10-19T14:02:00.000+0000" } },
+        { "id": "10204", "key": "API-204", "fields": { "summary": "Paginate /orders response", "updated": "2026-10-19T13:50:00.000+0000" } }
+      ] }
+    }
+  },
+  { "request": { "method": "POST", "url": "/rest/api/3/search/jql", "bodyIncludes": "this is not jql" }, "response": { "status": 400, "body": { "errorMessages": ["Error in the JQL Query: Expecting operator but got 'is'."] } } },
+  {
+    "request": { "method": "GET", "url": "/rest/api/3/issue/API-198?fields=summary,description,status,labels,reporter,assignee,updated,comment,issuelinks" },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "10198",
+        "key": "API-198",
+        "fields": {
+          "summary": "Retry policy for webhook delivery",
+          "status": { "name": "To Do" },
+          "labels": ["mates", "backend"],
+          "reporter": { "displayName": "Ana Keller", "emailAddress": "ana@example.com" },
+          "assignee": { "displayName": "Mates", "emailAddress": "mates@example.com" },
+          "updated": "2026-10-19T14:02:00.000+0000",
+          "description": {
+            "type": "doc", "version": 1,
+            "content": [
+              { "type": "paragraph", "content": [ { "type": "text", "text": "Deliveries must retry with " }, { "type": "text", "text": "exponential backoff", "marks": [ { "type": "strong" } ] }, { "type": "text", "text": "." } ] },
+              { "type": "heading", "attrs": { "level": 2 }, "content": [ { "type": "text", "text": "Acceptance criteria" } ] },
+              { "type": "bulletList", "content": [
+                { "type": "listItem", "content": [ { "type": "paragraph", "content": [ { "type": "text", "text": "At most 5 attempts within 10 minutes" } ] } ] },
+                { "type": "listItem", "content": [ { "type": "paragraph", "content": [ { "type": "text", "text": "Exhausted deliveries land in " }, { "type": "text", "text": "webhook_dlq", "marks": [ { "type": "code" } ] } ] } ] }
+              ] },
+              { "type": "heading", "attrs": { "level": 2 }, "content": [ { "type": "text", "text": "Notes" } ] },
+              { "type": "paragraph", "content": [ { "type": "text", "text": "See ", "marks": [] }, { "type": "text", "text": "the design doc", "marks": [ { "type": "link", "attrs": { "href": "https://wiki.example.com/retry" } } ] } ] }
+            ]
+          },
+          "comment": { "comments": [
+            { "id": "20001", "author": { "displayName": "Ana Keller", "accountId": "ana" }, "created": "2026-10-19T13:00:00.000+0000", "body": { "type": "doc", "version": 1, "content": [ { "type": "paragraph", "content": [ { "type": "text", "text": "Please keep the existing BackoffSchedule helper." } ] } ] } }
+          ] },
+          "issuelinks": [ { "outwardIssue": { "key": "API-150" } } ]
+        }
+      }
+    }
+  },
+  { "request": { "method": "GET", "url": "/rest/api/3/issue/API-404?fields=summary,description,status,labels,reporter,assignee,updated,comment,issuelinks" }, "response": { "status": 404, "body": { "errorMessages": ["Issue does not exist or you do not have permission to see it."] } } },
+  { "request": { "method": "POST", "url": "/rest/api/3/issue/API-198/comment" }, "response": { "status": 201, "body": { "id": "20002" } } },
+  { "request": { "method": "GET", "url": "/rest/api/3/issue/API-198?fields=status" }, "response": { "status": 200, "body": { "id": "10198", "key": "API-198", "fields": { "status": { "name": "To Do" } } } } },
+  { "request": { "method": "GET", "url": "/rest/api/3/issue/API-198/transitions" }, "response": { "status": 200, "body": { "transitions": [ { "id": "21", "name": "Start progress", "to": { "name": "In Progress" } }, { "id": "31", "name": "Done", "to": { "name": "Done" } } ] } } },
+  { "request": { "method": "POST", "url": "/rest/api/3/issue/API-198/transitions", "bodyIncludes": "\"id\":\"21\"" }, "response": { "status": 204 } }
+]

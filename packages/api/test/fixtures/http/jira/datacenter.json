@@ -1,0 +1,9 @@
+[
+  { "request": { "method": "GET", "url": "/rest/api/2/myself" }, "response": { "status": 200, "body": { "name": "mates", "displayName": "Mates" } } },
+  { "request": { "method": "GET", "url": "/rest/api/2/search?jql=labels%20%3D%20%22mates%22%20ORDER%20BY%20updated%20DESC&fields=summary,updated&maxResults=50" }, "response": { "status": 200, "body": { "issues": [ { "id": "30088", "key": "WEB-88", "fields": { "summary": "Checkout form validation rewrite", "updated": "2026-10-19T12:00:00.000+0000" } } ] } } },
+  {
+    "request": { "method": "GET", "url": "/rest/api/2/issue/WEB-88?fields=summary,description,status,labels,reporter,assignee,updated,comment,issuelinks,customfield_10042" },
+    "response": { "status": 200, "body": { "id": "30088", "key": "WEB-88", "fields": { "summary": "Checkout form validation rewrite", "description": "Rewrite the validation.\n\nh2. Context\nIt is flaky.", "customfield_10042": "- All fields validate on blur\n- Errors are announced", "status": { "name": "Selected" }, "labels": ["mates"], "comment": { "comments": [] } } } }
+  },
+  { "request": { "method": "POST", "url": "/rest/api/2/issue/WEB-88/comment" }, "response": { "status": 201, "body": { "id": "40001" } } }
+]
