@@ -1,0 +1,47 @@
+{
+  "name": "mates-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mates control plane: HTTP API, orchestrator, adapters, Kubernetes job spawner.",
+  "type": "module",
+  "main": "dist/main.js",
+  "files": [
+    "dist",
+    "migrations",
+    "prompts",
+    "public",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "migrate": "tsx src/db/migrate-cli.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/static": "^8.3.0",
+    "@fastify/swagger": "^9.5.0",
+    "@kubernetes/client-node": "^1.4.0",
+    "@node-rs/argon2": "^2.0.2",
+    "fastify": "^5.6.0",
+    "fastify-plugin": "^6.0.1",
+    "fastify-type-provider-zod": "^6.1.0",
+    "jose": "^6.1.0",
+    "pg": "^8.16.0",
+    "pino": "^10.0.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^12.2.1",
+    "@types/pg": "^8.15.0",
+    "pino-pretty": "^13.1.0",
+    "testcontainers": "^11.7.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.0"
+  }
+}

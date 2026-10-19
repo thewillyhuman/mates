@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+packages/api/public/
+packages/ui/test-results/
+packages/ui/playwright-report/
+charts/mates/charts/
+charts/mates/Chart.lock

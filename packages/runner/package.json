@@ -1,0 +1,23 @@
+{
+  "name": "mates-runner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "mates-run: wrapper that executes one Claude Code invocation in a pod and streams events to mates-api.",
+  "type": "module",
+  "bin": {
+    "mates-run": "dist/mates-run.js"
+  },
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/mates-run.js --banner:js='#!/usr/bin/env node' && chmod +x dist/mates-run.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.0"
+  }
+}
