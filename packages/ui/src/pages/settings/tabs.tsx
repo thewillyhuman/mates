@@ -301,6 +301,37 @@ export function ScmTab() {
                 onChange={(v) => update(i, { username: v })}
               />
             )}
+            {p.type === 'github' && (
+              <Field
+                label="Authentication"
+                path={`scm.providers.${i}.auth`}
+                type="select"
+                value={p.auth}
+                onChange={(v) => update(i, { auth: v as 'pat' | 'app' })}
+                options={[
+                  { value: 'pat', label: 'Personal access token' },
+                  { value: 'app', label: 'GitHub App (short-lived installation tokens)' },
+                ]}
+              />
+            )}
+            {p.type === 'github' && p.auth === 'app' && (
+              <>
+                <Field
+                  label="App id"
+                  path={`scm.providers.${i}.app_id`}
+                  value={p.app_id}
+                  onChange={(v) => update(i, { app_id: v })}
+                  placeholder="123456"
+                />
+                <Field
+                  label="Installation id"
+                  path={`scm.providers.${i}.installation_id`}
+                  value={p.installation_id}
+                  onChange={(v) => update(i, { installation_id: v })}
+                  placeholder="from the installation's settings URL"
+                />
+              </>
+            )}
             <Field
               label="MR labels (comma separated)"
               path={`scm.providers.${i}.labels`}
@@ -335,7 +366,14 @@ export function ScmTab() {
             value={p.draft_mrs}
             onChange={(v) => update(i, { draft_mrs: v === 'true' })}
           />
-          {p.id && (
+          {p.id && p.type === 'github' && p.auth === 'app' ? (
+            <CredentialField
+              name={`scm_${p.id}_app_private_key`}
+              label={`App private key for ${p.id}`}
+              hint="The PEM file downloaded from the App's settings. Contents: read & write, pull requests: read & write, metadata: read."
+              multiline
+            />
+          ) : p.id ? (
             <CredentialField
               name={`scm_${p.id}_token`}
               label={`${p.type === 'github' ? 'Personal access token' : 'Token'} for ${p.id}`}
@@ -347,7 +385,7 @@ export function ScmTab() {
                     : 'An access token with repository and issue write scopes.'
               }
             />
-          )}
+          ) : null}
           <button
             className="btn btn-sm btn-danger"
             type="button"
@@ -368,6 +406,9 @@ export function ScmTab() {
                 id: '',
                 type: 'gitlab',
                 base_url: '',
+                auth: 'pat',
+                app_id: '',
+                installation_id: '',
                 username: '',
                 draft_mrs: true,
                 labels: [],

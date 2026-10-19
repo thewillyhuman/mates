@@ -196,11 +196,14 @@ export function CredentialField({
   label,
   hint,
   test = true,
+  multiline = false,
 }: {
   name: string;
   label: string;
   hint?: ReactNode;
   test?: boolean;
+  /** Textarea instead of a password input, for PEM keys that must keep their line breaks. */
+  multiline?: boolean;
 }) {
   const [status, setStatus] = useState<CredentialStatus | null>(null);
   const [value, setValue] = useState('');
@@ -236,19 +239,33 @@ export function CredentialField({
         )}
       </label>
       <div className="row">
-        <input
-          id={`c-${name}`}
-          className="input"
-          type="password"
-          style={{ maxWidth: 420 }}
-          value={value}
-          disabled={readOnly}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={
-            status?.set ? '•••••••• (stored; enter a new value to replace)' : 'paste the value'
-          }
-          autoComplete="off"
-        />
+        {multiline ? (
+          <textarea
+            id={`c-${name}`}
+            className="input"
+            rows={4}
+            style={{ maxWidth: 420, fontFamily: 'monospace' }}
+            value={value}
+            disabled={readOnly}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={status?.set ? '(stored; paste a new key to replace)' : 'paste the PEM key'}
+            autoComplete="off"
+          />
+        ) : (
+          <input
+            id={`c-${name}`}
+            className="input"
+            type="password"
+            style={{ maxWidth: 420 }}
+            value={value}
+            disabled={readOnly}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={
+              status?.set ? '•••••••• (stored; enter a new value to replace)' : 'paste the value'
+            }
+            autoComplete="off"
+          />
+        )}
         <button
           className="btn"
           type="button"

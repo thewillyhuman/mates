@@ -65,6 +65,9 @@ export interface Settings {
       id: string;
       type: 'gitlab' | 'github' | 'gitea';
       base_url: string;
+      auth: 'pat' | 'app';
+      app_id: string;
+      installation_id: string;
       username: string;
       draft_mrs: boolean;
       labels: string[];

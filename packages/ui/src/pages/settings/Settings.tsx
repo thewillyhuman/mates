@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router';
 import { get } from '../../api/client.js';
 import { useAuth } from '../../api/auth.js';
-import type { CredentialStatus, TeamContextVersion } from '../../api/types.js';
+import type { CredentialStatus, Settings, TeamContextVersion } from '../../api/types.js';
 import { Chip } from '../../components/ui.js';
 import { SettingsProvider, useSettings } from './common.js';
 import {
@@ -36,6 +36,13 @@ const TABS = [
   { path: 'audit', label: 'Audit log', el: <AuditTab /> },
 ];
 
+/** The credential a provider needs: a token, or the App private key for GitHub Apps. */
+function scmCredentialName(p: Settings['scm']['providers'][number]): string {
+  return p.type === 'github' && p.auth === 'app'
+    ? `scm_${p.id}_app_private_key`
+    : `scm_${p.id}_token`;
+}
+
 /** The wizard's last page: what is still red (§6.2). */
 function Checklist() {
   const { settings } = useSettings();
@@ -45,7 +52,7 @@ function Checklist() {
     const names = [
       'anthropic_api_key',
       'jira_token',
-      ...settings.scm.providers.map((p) => `scm_${p.id}_token`),
+      ...settings.scm.providers.map((p) => scmCredentialName(p)),
     ];
     void Promise.all(
       names.map((n) => get<CredentialStatus>(`/api/settings/credentials/${n}`).catch(() => null)),
@@ -77,9 +84,9 @@ function Checklist() {
       label: 'Source control',
       ok:
         settings.scm.providers.length > 0 &&
-        settings.scm.providers.every((p) => creds[`scm_${p.id}_token`]?.set),
+        settings.scm.providers.every((p) => creds[scmCredentialName(p)]?.set),
       to: 'scm',
-      why: 'no provider with a stored token',
+      why: 'no provider with a stored token or App key',
     },
     { label: 'Team context', ok: Boolean(tc), to: 'team-context', why: 'no valid package active' },
   ];
