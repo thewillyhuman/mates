@@ -223,6 +223,30 @@
         }
       }
     },
+    "/api/auth/oidc/config": {
+      "get": {
+        "tags": ["auth"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["enabled"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/runs": {
       "get": {
         "tags": ["runs"],
@@ -1361,6 +1385,39 @@
         }
       }
     },
+    "/api/settings/audit": {
+      "get": {
+        "tags": ["settings"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "before",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 100,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/settings": {
       "get": {
         "tags": ["settings"],
@@ -1400,7 +1457,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_token)$"
+              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_(token|app_private_key))$"
             },
             "in": "path",
             "name": "name",
@@ -1462,7 +1519,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_token)$"
+              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_(token|app_private_key))$"
             },
             "in": "path",
             "name": "name",
@@ -1507,7 +1564,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_token)$"
+              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_(token|app_private_key))$"
             },
             "in": "path",
             "name": "name",
@@ -1528,7 +1585,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_token)$"
+              "pattern": "^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_(token|app_private_key))$"
             },
             "in": "path",
             "name": "name",
@@ -1795,6 +1852,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/settings/team-context/refresh": {
+      "post": {
+        "tags": ["settings"],
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }
