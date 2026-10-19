@@ -175,5 +175,12 @@ describe('settings API', () => {
       headers: t.as('admin'),
     });
     expect(reset.json()).toMatchObject({ overridden: false });
+    // The reset is persisted: a fresh read shows the default again.
+    const after = await t.app.inject({
+      url: '/api/settings/prompts/implementer',
+      headers: t.as('viewer'),
+    });
+    expect(after.json()).toMatchObject({ overridden: false });
+    expect(after.json<{ template: string }>().template).toContain('# Task — {{ticket.key}}');
   });
 });

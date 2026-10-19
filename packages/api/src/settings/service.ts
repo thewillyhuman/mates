@@ -133,6 +133,23 @@ export class SettingsService {
     return { settings: composed, ignored };
   }
 
+  /**
+   * Replaces one section wholesale (record-shaped sections such as
+   * `pricing` and `prompts`, where a merge could never remove a key).
+   */
+  async replaceSection(section: SettingsSection, value: unknown, by: string): Promise<Settings> {
+    const stored = await this.readStored(this.db);
+    const next: Json = { ...stored, [section]: value };
+    const composed = this.compose(next);
+    await this.db.query(
+      `INSERT INTO settings (key, value, updated_at, updated_by) VALUES ($1, $2, now(), $3)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now(), updated_by = EXCLUDED.updated_by`,
+      [section, JSON.stringify(value), by],
+    );
+    this.cache = composed;
+    return composed;
+  }
+
   private async readStored(db: Queryable): Promise<Json> {
     const r = await db.query<{ key: string; value: unknown }>('SELECT key, value FROM settings');
     const out: Json = {};

@@ -14,6 +14,7 @@ import {
   InvalidCredentialNameError,
   type CredentialStore,
 } from '../../settings/credentials.js';
+import { priceSchema } from '../../settings/schema.js';
 import { SettingsValidationError, type SettingsService } from '../../settings/service.js';
 import {
   MAX_PACKAGE_BYTES,
@@ -258,6 +259,32 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
     },
   );
 
+  // §9.3: the pricing table, empty by default; the UI hints to fill it in from Anthropic's price list.
+  r.get(
+    '/api/settings/pricing',
+    { preHandler: viewer, schema: { tags: ['settings'] } },
+    async () => ({
+      pricing: (await deps.settings.get()).pricing,
+      hint: 'Prices per million tokens in USD. Fill in from https://www.anthropic.com/pricing; cost_usd_computed stays null for unpriced models.',
+    }),
+  );
+
+  r.put(
+    '/api/settings/pricing',
+    { preHandler: admin, schema: { tags: ['settings'], body: z.record(z.string(), priceSchema) } },
+    async (req) => {
+      try {
+        // Replace the table as a whole so removed models disappear.
+        const settings = await deps.settings.replaceSection('pricing', req.body, req.user!.email);
+        return { pricing: settings.pricing };
+      } catch (err) {
+        if (err instanceof SettingsValidationError)
+          throw badRequest('invalid_pricing', err.message);
+        throw err;
+      }
+    },
+  );
+
   const promptName = z.object({ mate: z.enum(PROMPT_NAMES) });
   r.get(
     '/api/settings/prompts/:mate',
@@ -311,8 +338,7 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
       if (template === null) delete next[name];
       else next[name] = template;
       // Replace the whole section so a reset actually removes the key.
-      await deps.settings.update({ prompts: {} }, req.user!.email);
-      await deps.settings.update({ prompts: next }, req.user!.email);
+      await deps.settings.replaceSection('prompts', next, req.user!.email);
       const def = await defaultPrompt(name);
       return { name, template: next[name] ?? def, default: def, overridden: name in next };
     },
