@@ -5,3 +5,5 @@ export * from './redact.js';
 export * from './manifest.js';
 export * from './naming.js';
 export * from './test-output.js';
+export * from './context.js';
+export * from './schemas.js';

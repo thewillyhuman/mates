@@ -39,7 +39,10 @@ export interface InvocationView {
   /** Most recent condensed tool-use or text line, for board cards. */
   lastLine: string | null;
   failure: { reason: string; detail: string } | null;
+  /** From `usage.recorded` (final result); authoritative. */
   usage: UsageTotals;
+  /** From heartbeats while running; an estimate until `usage` arrives. */
+  liveUsage: UsageTotals | null;
 }
 
 export interface VerdictView {
@@ -276,6 +279,7 @@ export function projectRun(events: readonly RunEvent[]): RunProjection {
           lastLine: null,
           failure: null,
           usage: zeroUsage(),
+          liveUsage: null,
         };
         invocations.set(inv.id, inv);
         if (inv.mate === 'implementer') {
@@ -297,7 +301,18 @@ export function projectRun(events: readonly RunEvent[]): RunProjection {
       }
       case 'invocation.heartbeat': {
         const inv = invocationOf(e);
-        if (inv) inv.lastHeartbeatAt = e.ts;
+        if (inv) {
+          inv.lastHeartbeatAt = e.ts;
+          if (e.payload.usage) {
+            inv.liveUsage = {
+              inputTokens: e.payload.usage.input_tokens,
+              outputTokens: e.payload.usage.output_tokens,
+              cacheReadTokens: e.payload.usage.cache_read_tokens,
+              cacheWriteTokens: e.payload.usage.cache_write_tokens,
+              costUsd: 0,
+            };
+          }
+        }
         break;
       }
       case 'invocation.tool_use': {
@@ -334,7 +349,7 @@ export function projectRun(events: readonly RunEvent[]): RunProjection {
         const inv = invocationOf(e);
         const n = inv?.iteration ?? p.iteration;
         iterationView(n).pushed = e.payload;
-        if (e.payload.files_changed === 0) p.emptyIterations += 1;
+        if (!e.payload.changed_in_iteration) p.emptyIterations += 1;
         break;
       }
       case 'implementation.tests': {

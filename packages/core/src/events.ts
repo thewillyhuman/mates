@@ -101,7 +101,18 @@ export const eventPayloadSchemas = {
     model: z.string(),
   }),
   'invocation.started': z.object({ pod_name: z.string().default('') }),
-  'invocation.heartbeat': z.object({ note: z.string().optional() }),
+  'invocation.heartbeat': z.object({
+    note: z.string().optional(),
+    /** Cumulative tokens seen in assistant messages so far; a live estimate (§9.1). */
+    usage: z
+      .object({
+        input_tokens: tokens,
+        output_tokens: tokens,
+        cache_read_tokens: tokens,
+        cache_write_tokens: tokens,
+      })
+      .optional(),
+  }),
   'invocation.tool_use': z.object({ tool: z.string(), summary: z.string().max(500) }),
   'invocation.text': z.object({ text: z.string().max(2000) }),
   'invocation.finished': z.object({
@@ -109,14 +120,21 @@ export const eventPayloadSchemas = {
     duration_ms: z.number().int().min(0),
     session_id: z.string().nullable().default(null),
     result: claudeResultSchema.nullable().default(null),
+    /** Blob id of the gzipped stream-json transcript (§7.3 step 7). */
+    transcript_ref: z.string().nullable().default(null),
   }),
   'invocation.failed': z.object({ reason: z.string(), detail: z.string().default('') }),
 
   'implementation.pushed': z.object({
     commit: z.string(),
+    /** Diff of the run branch against the base branch (§7.3 step 6). */
     files_changed: z.number().int().min(0),
     additions: z.number().int().min(0),
     deletions: z.number().int().min(0),
+    /** `false` when this iteration produced no new commit (§7.5 rule 5). */
+    changed_in_iteration: z.boolean().default(true),
+    /** Blob id of the full diff against the base branch. */
+    diff_ref: z.string().nullable().default(null),
   }),
   'implementation.tests': z.object({
     passed: z.number().int().nullable(),

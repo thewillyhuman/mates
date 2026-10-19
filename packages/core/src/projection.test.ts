@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { EventPayload, EventType, RunEvent } from './events.js';
+import { eventPayloadSchemas, type EventType, type RunEvent } from './events.js';
+import type { z } from 'zod';
 import { ProjectionError, projectRun } from './projection.js';
 
 /** Builds a chronological log; each call is one minute after the previous. */
@@ -8,7 +9,7 @@ function log() {
   let t = Date.UTC(2026, 9, 19, 14, 0, 0);
   const add = <T extends EventType>(
     type: T,
-    payload: EventPayload<T>,
+    payload: z.input<(typeof eventPayloadSchemas)[T]>,
     invocationId: string | null = null,
   ) => {
     t += 60_000;
@@ -18,7 +19,7 @@ function log() {
       invocation_id: invocationId,
       ts: new Date(t).toISOString(),
       type,
-      payload,
+      payload: eventPayloadSchemas[type].parse(payload),
     } as RunEvent);
     return api;
   };
@@ -26,7 +27,7 @@ function log() {
   return api;
 }
 
-const created = (): EventPayload<'run.created'> => ({
+const created = (): z.input<(typeof eventPayloadSchemas)['run.created']> => ({
   ticket_key: 'API-198',
   trigger: 'manual',
   by: 'ana',
@@ -34,7 +35,7 @@ const created = (): EventPayload<'run.created'> => ({
   budget_usd: 25,
 });
 
-const usage = (cost: number): EventPayload<'usage.recorded'> => ({
+const usage = (cost: number): z.input<(typeof eventPayloadSchemas)['usage.recorded']> => ({
   model: 'claude-opus-5-5',
   input_tokens: 1000,
   output_tokens: 200,
@@ -243,7 +244,13 @@ describe('projectRun', () => {
         )
         .add(
           'implementation.pushed',
-          { commit: 'c', files_changed: 0, additions: 0, deletions: 0 },
+          {
+            commit: 'c',
+            files_changed: 0,
+            additions: 0,
+            deletions: 0,
+            changed_in_iteration: false,
+          },
           'i1',
         )
         .add(
@@ -253,7 +260,13 @@ describe('projectRun', () => {
         )
         .add(
           'implementation.pushed',
-          { commit: 'c', files_changed: 0, additions: 0, deletions: 0 },
+          {
+            commit: 'c',
+            files_changed: 0,
+            additions: 0,
+            deletions: 0,
+            changed_in_iteration: false,
+          },
           'i2',
         )
         .add('run.failed', { reason: 'empty_diff', detail: 'two iterations without changes' })
@@ -276,7 +289,18 @@ describe('projectRun', () => {
         'inv',
       )
       .add('invocation.started', { pod_name: 'pod-1' }, 'inv')
-      .add('invocation.heartbeat', {}, 'inv')
+      .add(
+        'invocation.heartbeat',
+        {
+          usage: {
+            input_tokens: 10,
+            output_tokens: 5,
+            cache_read_tokens: 0,
+            cache_write_tokens: 0,
+          },
+        },
+        'inv',
+      )
       .add('invocation.tool_use', { tool: 'Read', summary: 'read src/retry/policy.ts' }, 'inv');
     const p = projectRun(l.events);
     expect(p.currentInvocation).toMatchObject({
@@ -285,6 +309,7 @@ describe('projectRun', () => {
       podName: 'pod-1',
       lastLine: 'read src/retry/policy.ts',
       lastHeartbeatAt: l.events[4]!.ts,
+      liveUsage: { inputTokens: 10, outputTokens: 5 },
     });
     expect(p.currentAction).toBe('Reading ticket · read src/retry/policy.ts');
   });
