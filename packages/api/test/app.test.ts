@@ -52,6 +52,7 @@ function stubDeps(db: TestDatabase, bootstrap: Bootstrap): Omit<AppDeps, 'uiDir'
     fakeClaude: true,
     helm: {},
     defaultRunnerImage: 'img',
+    runnerGitToken: async () => undefined,
   });
   const credentials = new CredentialStore(secrets, db.pool, 'mates', false);
   const integrations = new Integrations(settings, credentials, 'http://mates.test');

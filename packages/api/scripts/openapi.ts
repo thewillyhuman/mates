@@ -51,6 +51,7 @@ const spawner = new InvocationSpawner({
   fakeClaude: true,
   helm: {},
   defaultRunnerImage: 'img',
+  runnerGitToken: async () => undefined,
 });
 const mergeRequests = new MergeRequests({
   integrations,

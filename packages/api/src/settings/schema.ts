@@ -27,6 +27,10 @@ export const providerSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
   type: z.enum(['gitlab', 'github', 'gitea']),
   base_url: z.string().url(),
+  /** GitHub only: a PAT in `scm_<id>_token`, or a GitHub App (§8.5) whose private key is `scm_<id>_app_private_key`. */
+  auth: z.enum(['pat', 'app']).default('pat'),
+  app_id: z.string().default(''),
+  installation_id: z.string().default(''),
   /** Credential username for generic hosts (Gitea); GitLab/GitHub have fixed ones. */
   username: z.string().default(''),
   draft_mrs: z.boolean().default(true),

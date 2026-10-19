@@ -29,7 +29,7 @@ describe('GitLabScm', () => {
     expect(calls[0]!.headers['private-token']).toBe('glpat-token');
     await expect(scm.resolveRepo('nope/missing')).rejects.toMatchObject({ status: 404 });
     await expect(scm.resolveRepo('nope/missing')).rejects.toBeInstanceOf(ScmError);
-    expect(scm.cloneCredential()).toEqual({ username: 'oauth2', token: 'glpat-token' });
+    expect(await scm.cloneCredential()).toEqual({ username: 'oauth2', token: 'glpat-token' });
   });
 
   it('opens a draft MR with labels and resolved reviewers', async () => {

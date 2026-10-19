@@ -26,6 +26,8 @@ export interface SpawnerDeps {
   fakeClaude: boolean;
   helm: HelmConfig;
   defaultRunnerImage: string;
+  /** Short-lived git token for App-authenticated providers (undefined for PATs). */
+  runnerGitToken: (providerId: string) => Promise<string | undefined>;
 }
 
 export const JOB_TTL_SECONDS = 3600;
@@ -83,6 +85,12 @@ export class InvocationSpawner {
       mateSettings.timeout_seconds + 600,
     );
     const secretName = tokenSecretName(invocation.id);
+    const appToken = scmProviderId ? await this.deps.runnerGitToken(scmProviderId) : undefined;
+    const gitToken = !scmProviderId
+      ? null
+      : appToken
+        ? { secret: secretName, key: 'git_token' }
+        : { secret: `${this.deps.release}-credentials`, key: `scm_${scmProviderId}_token` };
     const jobInput = {
       name: invocation.jobName,
       namespace: this.deps.namespace,
@@ -99,7 +107,7 @@ export class InvocationSpawner {
       apiUrl: this.deps.apiInternalUrl,
       tokenSecretName: secretName,
       credentialsSecretName: `${this.deps.release}-credentials`,
-      scmTokenKey: scmProviderId ? `scm_${scmProviderId}_token` : null,
+      gitToken,
       anthropicProvider: settings.anthropic.provider,
       fakeClaude: this.deps.fakeClaude,
       httpProxy: settings.runner.http_proxy,
@@ -111,7 +119,7 @@ export class InvocationSpawner {
         '',
       extraEnv: {},
     };
-    await this.deps.jobs.createSecret(buildTokenSecret(jobInput, token));
+    await this.deps.jobs.createSecret(buildTokenSecret(jobInput, token, appToken));
     const { uid } = await this.deps.jobs.createJob(buildJobManifest(jobInput));
     if (uid) {
       await this.deps.jobs

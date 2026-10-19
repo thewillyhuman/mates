@@ -17,7 +17,7 @@ const input: JobInput = {
   apiUrl: 'http://mates.mates.svc:8080',
   tokenSecretName: 'mates-inv-inv-1',
   credentialsSecretName: 'mates-credentials',
-  scmTokenKey: 'scm_gitlab_token',
+  gitToken: { secret: 'mates-credentials', key: 'scm_gitlab_token' },
   anthropicProvider: 'api_key',
   fakeClaude: false,
   httpProxy: '',
@@ -89,9 +89,11 @@ describe('buildJobManifest', () => {
     expect(
       c.env!.find((e) => e.name === 'MATES_INVOCATION_TOKEN')!.valueFrom!.secretKeyRef,
     ).toEqual({ name: 'mates-inv-inv-1', key: 'token', optional: false });
-    expect(c.env!.find((e) => e.name === 'GIT_TOKEN')!.valueFrom!.secretKeyRef!.key).toBe(
-      'scm_gitlab_token',
-    );
+    expect(c.env!.find((e) => e.name === 'GIT_TOKEN')!.valueFrom!.secretKeyRef).toEqual({
+      name: 'mates-credentials',
+      key: 'scm_gitlab_token',
+      optional: true,
+    });
     expect(envNames).not.toContain('MATES_FAKE_CLAUDE');
     expect(JSON.stringify(job)).not.toMatch(/eyJ|token"?:"[A-Za-z0-9]/);
   });
@@ -104,7 +106,7 @@ describe('buildJobManifest', () => {
       noProxy: '.svc',
       caBundleConfigMap: 'corp-ca',
       imagePullSecret: 'regcred',
-      scmTokenKey: null,
+      gitToken: null,
       anthropicProvider: 'bedrock',
     });
     const pod = job.spec!.template.spec!;

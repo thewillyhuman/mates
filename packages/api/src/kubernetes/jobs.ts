@@ -38,8 +38,8 @@ export interface JobInput {
   /** Secret holding MATES_INVOCATION_TOKEN; created with the Job. */
   tokenSecretName: string;
   credentialsSecretName: string;
-  /** Key of the SCM token in the credentials Secret, or null when no repo is involved. */
-  scmTokenKey: string | null;
+  /** Where GIT_TOKEN comes from: the credentials Secret (PAT) or the token Secret (App). */
+  gitToken: { secret: string; key: string } | null;
   anthropicProvider: 'api_key' | 'bedrock' | 'vertex' | 'foundry';
   fakeClaude: boolean;
   httpProxy: string;
@@ -79,8 +79,8 @@ export function buildJobManifest(input: JobInput): V1Job {
       secretEnv('ANTHROPIC_API_KEY', input.credentialsSecretName, 'anthropic_api_key', true),
     );
   }
-  if (input.scmTokenKey)
-    envVars.push(secretEnv('GIT_TOKEN', input.credentialsSecretName, input.scmTokenKey, true));
+  if (input.gitToken)
+    envVars.push(secretEnv('GIT_TOKEN', input.gitToken.secret, input.gitToken.key, true));
   if (input.fakeClaude) envVars.push(env('MATES_FAKE_CLAUDE', '1'));
   if (input.httpProxy) {
     envVars.push(
@@ -165,6 +165,8 @@ export function buildJobManifest(input: JobInput): V1Job {
 export function buildTokenSecret(
   input: Pick<JobInput, 'tokenSecretName' | 'namespace' | 'runId' | 'invocationId'>,
   token: string,
+  /** An installation token minted for this invocation (GitHub App providers). */
+  gitToken?: string,
 ): V1Secret {
   return {
     apiVersion: 'v1',
@@ -179,7 +181,10 @@ export function buildTokenSecret(
       },
     },
     type: 'Opaque',
-    data: { token: Buffer.from(token).toString('base64') },
+    data: {
+      token: Buffer.from(token).toString('base64'),
+      ...(gitToken ? { git_token: Buffer.from(gitToken).toString('base64') } : {}),
+    },
   };
 }
 

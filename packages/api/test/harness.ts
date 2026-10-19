@@ -85,6 +85,7 @@ export async function testApp(
     fakeClaude,
     helm,
     defaultRunnerImage: 'mates-runner:test',
+    runnerGitToken: (providerId) => integrations.runnerGitToken(providerId),
   });
   const monitor = new JobMonitor({ db: db.pool, bus, jobs, log, graceMs: 0 });
   const tracker = new FakeTracker();

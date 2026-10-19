@@ -55,7 +55,7 @@ export interface Scm {
   readonly type: ScmType;
   resolveRepo(project: string): Promise<RepoInfo>;
   /** What the runner gets (§8): username + token for the credential helper. */
-  cloneCredential(): { username: string; token: string };
+  cloneCredential(): Promise<{ username: string; token: string }>;
   openMergeRequest(repo: RepoInfo, input: OpenMergeRequestInput): Promise<MergeRequest>;
   updateMergeRequest(
     repo: RepoInfo,

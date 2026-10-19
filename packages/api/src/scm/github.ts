@@ -10,15 +10,24 @@ import {
 } from './scm.js';
 
 /**
- * GitHub adapter (§8.5): github.com or GitHub Enterprise Server, personal
- * access token (the App flow is M7). Drafts use the API flag with the §8.3
- * fallback (ready + `mates:draft` label) when the repository refuses them;
- * "mark ready" goes through the GraphQL mutation, the only API for it.
+ * GitHub adapter (§8.5): github.com or GitHub Enterprise Server, with a
+ * personal access token or a GitHub App token source (`GitHubAppAuth`).
+ * Drafts use the API flag with the §8.3 fallback (ready + `mates:draft`
+ * label) when the repository refuses them; "mark ready" goes through the
+ * GraphQL mutation, the only API for it.
  */
 export interface GitHubOptions {
   baseUrl: string;
-  token: string;
+  /** A static PAT, or a source of short-lived tokens resolved per request. */
+  token: string | (() => Promise<string>);
   fetch?: typeof fetch;
+}
+
+/** REST base: api.github.com for github.com, `<base>/api/v3` on Enterprise Server. */
+export function githubApiBase(baseUrl: string): string {
+  const base = baseUrl.replace(/\/+$/, '');
+  const isDotCom = /github\.com$/.test(base) || base === '';
+  return isDotCom ? 'https://api.github.com' : `${base}/api/v3`;
 }
 
 export const DRAFT_FALLBACK_LABEL = 'mates:draft';
@@ -74,17 +83,19 @@ export class GitHubScm implements Scm {
   constructor(private readonly opts: GitHubOptions) {
     const base = opts.baseUrl.replace(/\/+$/, '');
     const isDotCom = /github\.com$/.test(base) || base === '';
-    const apiBase = isDotCom ? 'https://api.github.com' : `${base}/api/v3`;
     this.graphqlUrl = isDotCom ? 'https://api.github.com/graphql' : `${base}/api/graphql`;
     this.http = new HttpClient({
-      baseUrl: apiBase,
-      headers: {
-        authorization: `Bearer ${opts.token}`,
-        'x-github-api-version': '2022-11-28',
-        'user-agent': 'mates',
-      },
+      baseUrl: githubApiBase(opts.baseUrl),
+      headers: { 'x-github-api-version': '2022-11-28', 'user-agent': 'mates' },
+      authorization: async () => `Bearer ${await this.token()}`,
       fetch: opts.fetch,
     });
+  }
+
+  private token(): Promise<string> {
+    return typeof this.opts.token === 'string'
+      ? Promise.resolve(this.opts.token)
+      : this.opts.token();
   }
 
   async resolveRepo(project: string): Promise<RepoInfo> {
@@ -103,8 +114,8 @@ export class GitHubScm implements Scm {
     }
   }
 
-  cloneCredential(): { username: string; token: string } {
-    return { username: 'x-access-token', token: this.opts.token };
+  async cloneCredential(): Promise<{ username: string; token: string }> {
+    return { username: 'x-access-token', token: await this.token() };
   }
 
   async openMergeRequest(repo: RepoInfo, input: OpenMergeRequestInput): Promise<MergeRequest> {

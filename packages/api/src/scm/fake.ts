@@ -32,7 +32,7 @@ export class FakeScm implements Scm {
     };
   }
 
-  cloneCredential(): { username: string; token: string } {
+  async cloneCredential(): Promise<{ username: string; token: string }> {
     return { username: 'oauth2', token: 'fake-token' };
   }
 

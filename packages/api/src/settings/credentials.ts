@@ -7,7 +7,7 @@ import type { SecretStore } from '../secrets/store.js';
  * With `credentials.existingSecret` the store is read-only for the UI.
  */
 export const CREDENTIAL_NAME =
-  /^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_token)$/;
+  /^(anthropic_api_key|jira_token|jira_webhook_secret|oidc_client_secret|scm_[a-z0-9-]+_(token|app_private_key))$/;
 
 export interface CredentialStatus {
   name: string;

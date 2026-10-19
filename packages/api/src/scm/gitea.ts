@@ -93,7 +93,7 @@ export class GiteaScm implements Scm {
     }
   }
 
-  cloneCredential(): { username: string; token: string } {
+  async cloneCredential(): Promise<{ username: string; token: string }> {
     return { username: this.opts.username || 'mates', token: this.opts.token };
   }
 

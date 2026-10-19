@@ -23,3 +23,4 @@ Numbered, never edited after the fact: supersede with a new file instead.
 | [0016](0016-charts.md) | Charts are hand-written SVG |
 | [0017](0017-team-context-via-provider-archives.md) | Team context fetched as a provider archive |
 | [0018](0018-audit-log-table.md) | Audit events in their own table |
+| [0019](0019-app-tokens-via-invocation-secret.md) | GitHub App tokens reach runners through the invocation Secret |

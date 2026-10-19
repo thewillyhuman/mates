@@ -23,7 +23,7 @@ describe('GitHubScm', () => {
     });
     expect(calls[0]!.url).toBe('https://api.github.com/repos/example-org/billing-service');
     expect(calls[0]!.headers.authorization).toBe('Bearer ghp_token');
-    expect(scm.cloneCredential()).toEqual({ username: 'x-access-token', token: 'ghp_token' });
+    expect(await scm.cloneCredential()).toEqual({ username: 'x-access-token', token: 'ghp_token' });
   });
 
   it('opens a draft PR, then labels and requests reviewers', async () => {

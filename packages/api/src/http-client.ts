@@ -6,6 +6,8 @@
 export interface HttpClientOptions {
   baseUrl: string;
   headers: Record<string, string>;
+  /** Resolved on every request, for short-lived tokens that renew themselves. */
+  authorization?: (() => Promise<string>) | undefined;
   fetch?: typeof fetch | undefined;
   timeoutMs?: number;
   retries?: number;
@@ -57,12 +59,20 @@ export class HttpClient {
   ): Promise<Response> {
     const url = path.startsWith('http') ? path : `${this.baseUrl}${path}`;
     const retries = this.opts.retries ?? 2;
+    const dynamic = this.opts.authorization
+      ? { authorization: await this.opts.authorization() }
+      : {};
     let last: unknown;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const init: RequestInit = {
           method,
-          headers: { accept: 'application/json', ...this.opts.headers, ...extraHeaders },
+          headers: {
+            accept: 'application/json',
+            ...this.opts.headers,
+            ...dynamic,
+            ...extraHeaders,
+          },
           signal: AbortSignal.timeout(this.opts.timeoutMs ?? 20_000),
         };
         if (body !== undefined) {

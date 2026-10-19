@@ -14,7 +14,7 @@ describe('GiteaScm', () => {
     const repo = await scm.resolveRepo('mates/webhook-service');
     expect(repo.cloneUrl).toBe('http://gitea:3000/mates/webhook-service.git');
     expect(f.calls[0]!.headers.authorization).toBe('token tok');
-    expect(scm.cloneCredential()).toEqual({ username: 'mates', token: 'tok' });
+    expect(await scm.cloneCredential()).toEqual({ username: 'mates', token: 'tok' });
 
     const mr = await scm.openMergeRequest(repo, {
       source: 'mates/API-198-retry',

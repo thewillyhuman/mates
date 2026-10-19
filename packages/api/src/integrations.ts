@@ -3,9 +3,10 @@ import { JiraTracker } from './tracker/jira.js';
 import type { Scm } from './scm/scm.js';
 import { GitLabScm } from './scm/gitlab.js';
 import { GitHubScm } from './scm/github.js';
+import { GitHubAppAuth } from './scm/github-app.js';
 import { GiteaScm } from './scm/gitea.js';
 import type { CredentialStore } from './settings/credentials.js';
-import type { Settings } from './settings/schema.js';
+import type { ScmProvider, Settings } from './settings/schema.js';
 import type { SettingsService } from './settings/service.js';
 
 /**
@@ -25,6 +26,9 @@ export class Integrations {
     private readonly overrides: IntegrationOverrides = {},
     private readonly fetchFn?: typeof fetch,
   ) {}
+
+  /** One token cache per App provider, keyed by what would invalidate it. */
+  private readonly apps = new Map<string, { key: string; auth: GitHubAppAuth }>();
 
   triggerRule(settings: Settings): TriggerRule {
     return { kind: settings.jira.trigger.kind, value: settings.jira.trigger.value };
@@ -54,9 +58,20 @@ export class Integrations {
     if (this.overrides.scm?.[providerId]) return this.overrides.scm[providerId];
     const s = await this.settings.get();
     const provider = s.scm.providers.find((p) => p.id === providerId);
-    const token = await this.credentials.read(`scm_${providerId}_token`);
-    if (!provider || !token) return undefined;
+    if (!provider) return undefined;
     const fetchOpt = this.fetchFn ? { fetch: this.fetchFn } : {};
+    if (provider.type === 'github' && provider.auth === 'app') {
+      const app = await this.githubApp(provider);
+      return app
+        ? new GitHubScm({
+            baseUrl: provider.base_url,
+            token: () => app.installationToken(),
+            ...fetchOpt,
+          })
+        : undefined;
+    }
+    const token = await this.credentials.read(`scm_${providerId}_token`);
+    if (!token) return undefined;
     switch (provider.type) {
       case 'gitlab':
         return new GitLabScm({ baseUrl: provider.base_url, token, ...fetchOpt });
@@ -70,5 +85,35 @@ export class Integrations {
           ...fetchOpt,
         });
     }
+  }
+
+  /**
+   * The git token a runner pod should use for an App-authenticated provider,
+   * minted here and handed over through the per-invocation Secret. Undefined
+   * for PAT providers, whose token the pod reads from the credentials Secret.
+   */
+  async runnerGitToken(providerId: string): Promise<string | undefined> {
+    const s = await this.settings.get();
+    const provider = s.scm.providers.find((p) => p.id === providerId);
+    if (!provider || provider.type !== 'github' || provider.auth !== 'app') return undefined;
+    const app = await this.githubApp(provider);
+    return app?.installationToken();
+  }
+
+  private async githubApp(provider: ScmProvider): Promise<GitHubAppAuth | undefined> {
+    const pem = await this.credentials.read(`scm_${provider.id}_app_private_key`);
+    if (!pem || !provider.app_id || !provider.installation_id) return undefined;
+    const key = `${provider.base_url}|${provider.app_id}|${provider.installation_id}|${pem.length}`;
+    const hit = this.apps.get(provider.id);
+    if (hit && hit.key === key) return hit.auth;
+    const auth = new GitHubAppAuth({
+      baseUrl: provider.base_url,
+      appId: provider.app_id,
+      installationId: provider.installation_id,
+      privateKeyPem: pem,
+      ...(this.fetchFn ? { fetch: this.fetchFn } : {}),
+    });
+    this.apps.set(provider.id, { key, auth });
+    return auth;
   }
 }

@@ -91,6 +91,7 @@ const spawner = new InvocationSpawner({
   fakeClaude: config.fakeClaude,
   helm,
   defaultRunnerImage: config.runnerImage,
+  runnerGitToken: (providerId) => integrations.runnerGitToken(providerId),
 });
 const integrations = new Integrations(settings, credentials, config.publicUrl);
 const mergeRequests = new MergeRequests({
