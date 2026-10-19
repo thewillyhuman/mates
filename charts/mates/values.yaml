@@ -73,8 +73,12 @@ auth:
 
 networkPolicy:
   enabled: true
+  # Runner pods may reach the internet (minus private ranges) …
   egressAllowAll: true
+  # … or only these CIDRs when egressAllowAll is false.
   egressCidrs: []
+  # Namespaces allowed to reach the API (your ingress controller's); empty = any.
+  ingressNamespaces: []
 
 # Settings pinned here are "managed by Helm" (§5.2): they override what the
 # UI stores and show as read-only there. Leave a key out to let operators

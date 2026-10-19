@@ -9,6 +9,10 @@ RUNNER_TAG="${2:-smoke}"
 NS="${MATES_SMOKE_NAMESPACE:-mates}"
 RELEASE="mates"
 
+# §10.1: the chart must work under the restricted Pod Security Standard.
+kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+kubectl label namespace "$NS" pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/enforce-version=latest --overwrite >/dev/null
+
 helm upgrade --install "$RELEASE" charts/mates \
   --namespace "$NS" --create-namespace \
   --set image.repository=mates-api --set image.tag="$API_TAG" --set image.pullPolicy=Never \

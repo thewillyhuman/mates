@@ -1,0 +1,110 @@
+{{- if .Values.networkPolicy.enabled }}
+# §10.1: runner pods reach DNS, the API and the outside world (or an
+# allowlist); never each other, never Postgres, never other namespaces.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "mates.fullname" . }}-runner
+  labels:
+    {{- include "mates.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mates-runner
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "mates.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: api
+      ports:
+        - { protocol: TCP, port: {{ .Values.service.port }} }
+    {{- if .Values.networkPolicy.egressAllowAll }}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+    {{- else }}
+    {{- range .Values.networkPolicy.egressCidrs }}
+    - to:
+        - ipBlock:
+            cidr: {{ . }}
+    {{- end }}
+    {{- end }}
+---
+# The API accepts traffic from runner pods and from the ingress namespace(s)
+# or anywhere (default), and reaches Postgres, the Kubernetes API, Jira and
+# the SCM over egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "mates.fullname" . }}-api
+  labels:
+    {{- include "mates.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "mates.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mates-runner
+      ports:
+        - { protocol: TCP, port: {{ .Values.service.port }} }
+    - from:
+        {{- if .Values.networkPolicy.ingressNamespaces }}
+        {{- range .Values.networkPolicy.ingressNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+        {{- end }}
+        {{- else }}
+        - namespaceSelector: {}
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: {{ .Values.service.port }} }
+{{- if .Values.postgresql.enabled }}
+---
+# The bundled database is reachable from the API only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "mates.fullname" . }}-postgresql
+  labels:
+    {{- include "mates.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "mates.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "mates.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: api
+        - podSelector:
+            matchLabels:
+              {{- include "mates.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: migrate
+      ports:
+        - { protocol: TCP, port: 5432 }
+{{- end }}
+{{- end }}

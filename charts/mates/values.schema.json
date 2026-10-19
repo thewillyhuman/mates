@@ -1,0 +1,378 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mates chart values",
+  "type": "object",
+  "properties": {
+    "image": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string"
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        }
+      },
+      "required": [
+        "repository"
+      ]
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1,
+      "description": "v1 runs a single orchestrator replica"
+    },
+    "runner": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "object",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "repository"
+          ]
+        },
+        "resources": {
+          "type": "object"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 60
+        },
+        "workspaceSizeGi": {
+          "type": "number",
+          "minimum": 1
+        },
+        "fakeClaude": {
+          "type": "boolean"
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "className": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object"
+        },
+        "host": {
+          "type": "string"
+        },
+        "tls": {
+          "type": "array"
+        }
+      }
+    },
+    "publicUrl": {
+      "type": "string"
+    },
+    "postgresql": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "type": "string"
+        },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "database": {
+              "type": "string"
+            },
+            "username": {
+              "type": "string"
+            }
+          }
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string"
+            },
+            "className": {
+              "type": "string"
+            }
+          }
+        },
+        "resources": {
+          "type": "object"
+        }
+      }
+    },
+    "externalDatabase": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "existingSecret": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        }
+      }
+    },
+    "credentials": {
+      "type": "object",
+      "properties": {
+        "existingSecret": {
+          "type": "string"
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "properties": {
+        "oidc": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "issuer": {
+              "type": "string"
+            },
+            "clientId": {
+              "type": "string"
+            },
+            "scopes": {
+              "type": "string"
+            },
+            "groupsClaim": {
+              "type": "string"
+            },
+            "groups": {
+              "type": "object",
+              "properties": {
+                "admin": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "operator": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "issuer": {
+                "minLength": 1
+              },
+              "clientId": {
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "egressAllowAll": {
+          "type": "boolean"
+        },
+        "egressCidrs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ingressNamespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "maxIterations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "budgets": {
+          "type": "object",
+          "properties": {
+            "perRunUsd": {
+              "type": "number",
+              "minimum": 0
+            },
+            "perDayUsd": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "models": {
+          "type": "object",
+          "properties": {
+            "intake": {
+              "type": "string"
+            },
+            "implementer": {
+              "type": "string"
+            },
+            "reviewer": {
+              "type": "string"
+            }
+          }
+        },
+        "jira": {
+          "type": "object",
+          "properties": {
+            "pollIntervalSeconds": {
+              "type": "integer",
+              "minimum": 10
+            }
+          }
+        },
+        "retention": {
+          "type": "object",
+          "properties": {
+            "transcriptsDays": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "eventsDays": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "timezone": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "serviceMonitor": {
+          "type": "object"
+        }
+      }
+    },
+    "logLevel": {
+      "type": "string",
+      "enum": [
+        "trace",
+        "debug",
+        "info",
+        "warn",
+        "error",
+        "fatal"
+      ]
+    },
+    "resources": {
+      "type": "object"
+    },
+    "podDisruptionBudget": {
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "type": "object"
+    },
+    "securityContext": {
+      "type": "object"
+    },
+    "nodeSelector": {
+      "type": "object"
+    },
+    "tolerations": {
+      "type": "array"
+    },
+    "affinity": {
+      "type": "object"
+    },
+    "podAnnotations": {
+      "type": "object"
+    },
+    "extraEnv": {
+      "type": "array"
+    },
+    "nameOverride": {
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "type": "string"
+    }
+  }
+}
