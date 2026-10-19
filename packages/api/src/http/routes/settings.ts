@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { listAudit } from '../../audit/log.js';
+import type { Pool } from '../../db/pool.js';
 import type { Integrations } from '../../integrations.js';
 import type { AnthropicTest } from '../../orchestrator/anthropic-test.js';
 import {
@@ -26,6 +28,7 @@ import {
 import { AppError, badRequest, notFound } from '../errors.js';
 
 export interface SettingsRouteDeps {
+  db: Pool;
   settings: SettingsService;
   credentials: CredentialStore;
   teamContext: TeamContextService;
@@ -60,6 +63,21 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
   const admin = app.requireRole('admin');
   const viewer = app.requireRole('viewer');
 
+  r.get(
+    '/api/settings/audit',
+    {
+      preHandler: admin,
+      schema: {
+        tags: ['settings'],
+        querystring: z.object({
+          before: z.coerce.number().int().optional(),
+          limit: z.coerce.number().int().min(1).max(500).default(100),
+        }),
+      },
+    },
+    async (req) => ({ entries: await listAudit(deps.db, req.query) }),
+  );
+
   r.get('/api/settings', { preHandler: admin, schema: { tags: ['settings'] } }, async () => ({
     settings: await deps.settings.get(),
     managed: deps.settings.managedPaths(),
@@ -71,6 +89,7 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
     async (req) => {
       try {
         const { settings, ignored } = await deps.settings.update(req.body, req.user!.email);
+        await req.audit('audit.settings.update', Object.keys(req.body).join(','), { ignored });
         return { settings, managed: deps.settings.managedPaths(), ignored };
       } catch (err) {
         if (err instanceof SettingsValidationError)
@@ -108,6 +127,7 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
     async (req) => {
       try {
         await deps.credentials.set(req.params.name, req.body.value, req.user!.email);
+        await req.audit('audit.credential.set', req.params.name);
       } catch (err) {
         if (err instanceof CredentialsReadOnlyError)
           throw new AppError(409, 'credentials_read_only', err.message);
@@ -130,6 +150,7 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
     async (req, reply) => {
       try {
         await deps.credentials.delete(req.params.name, req.user!.email);
+        await req.audit('audit.credential.delete', req.params.name);
       } catch (err) {
         if (err instanceof CredentialsReadOnlyError)
           throw new AppError(409, 'credentials_read_only', err.message);
@@ -236,6 +257,10 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
           'upload',
           req.headers['x-mates-ref']?.toString() ?? null,
         );
+        await req.audit('audit.team_context.upload', `v${v.version}`, {
+          active: v.active,
+          errors: v.errors.length,
+        });
         return reply.status(201).send(serialiseVersion(v));
       } catch (err) {
         if (err instanceof TeamContextError) throw badRequest('invalid_package', err.message);
@@ -278,6 +303,7 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
       try {
         // Replace the table as a whole so removed models disappear.
         const settings = await deps.settings.replaceSection('pricing', req.body, req.user!.email);
+        await req.audit('audit.pricing.update', '', { models: Object.keys(req.body) });
         return { pricing: settings.pricing };
       } catch (err) {
         if (err instanceof SettingsValidationError)
@@ -341,6 +367,7 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
       else next[name] = template;
       // Replace the whole section so a reset actually removes the key.
       await deps.settings.replaceSection('prompts', next, req.user!.email);
+      await req.audit('audit.prompt.update', name, { reset: template === null });
       const def = await defaultPrompt(name);
       return { name, template: next[name] ?? def, default: def, overridden: name in next };
     },

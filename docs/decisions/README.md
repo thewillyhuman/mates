@@ -21,3 +21,4 @@ Numbered, never edited after the fact: supersede with a new file instead.
 | [0014](0014-gitea-and-webhook-secret.md) | Gitea adapter, webhook secret scheme, acceptance-criteria detection |
 | [0015](0015-retry-semantics.md) | What "retry" means for a blocked run |
 | [0016](0016-charts.md) | Charts are hand-written SVG |
+| [0018](0018-audit-log-table.md) | Audit events in their own table |

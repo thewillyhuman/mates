@@ -79,6 +79,10 @@ export async function runsRoutes(app: FastifyInstance, deps: RunsRouteDeps): Pro
     },
     async (req, reply) => {
       const result = await deps.starter.start(req.body.ticket_key, 'manual', req.user!.email);
+      await req.audit('audit.run.create', result.run.id, {
+        ticket: req.body.ticket_key,
+        created: result.created,
+      });
       const detail = (await getRunDetail(deps.db, result.run.id))!;
       return reply.status(result.created ? 201 : 200).send(toRunDetail(detail));
     },
@@ -144,6 +148,7 @@ export async function runsRoutes(app: FastifyInstance, deps: RunsRouteDeps): Pro
     async (req) => {
       if (!(await findRun(deps.db, req.params.id))) throw notFound('run');
       await deps.orchestrator.cancel(req.params.id, req.user!.email, req.body.reason);
+      await req.audit('audit.run.cancel', req.params.id, { reason: req.body.reason });
       return toRunDetail((await getRunDetail(deps.db, req.params.id))!);
     },
   );
@@ -163,6 +168,7 @@ export async function runsRoutes(app: FastifyInstance, deps: RunsRouteDeps): Pro
     async (req) => {
       await mustExist(req.params.id);
       await deps.orchestrator.pause(req.params.id, req.user!.email);
+      await req.audit('audit.run.pause', req.params.id);
       return detailOf(req.params.id);
     },
   );
@@ -176,6 +182,7 @@ export async function runsRoutes(app: FastifyInstance, deps: RunsRouteDeps): Pro
     async (req) => {
       await mustExist(req.params.id);
       await deps.orchestrator.resume(req.params.id, req.user!.email);
+      await req.audit('audit.run.resume', req.params.id);
       return detailOf(req.params.id);
     },
   );
@@ -195,6 +202,11 @@ export async function runsRoutes(app: FastifyInstance, deps: RunsRouteDeps): Pro
     async (req) => {
       await mustExist(req.params.id);
       await deps.orchestrator.retry(req.params.id, req.user!.email, req.body.budget_usd);
+      await req.audit(
+        'audit.run.retry',
+        req.params.id,
+        req.body.budget_usd !== undefined ? { budget_usd: req.body.budget_usd } : {},
+      );
       return detailOf(req.params.id);
     },
   );
@@ -235,6 +247,10 @@ export async function runsRoutes(app: FastifyInstance, deps: RunsRouteDeps): Pro
         await appendEvents(deps.db, deps.bus, req.params.id, events);
       }
       if (req.body.and_retry) await deps.orchestrator.retry(req.params.id, req.user!.email);
+      await req.audit('audit.run.nudge', req.params.id, {
+        post_to_tracker: req.body.post_to_tracker,
+        and_retry: req.body.and_retry,
+      });
       return reply.status(201).send(await detailOf(req.params.id));
     },
   );

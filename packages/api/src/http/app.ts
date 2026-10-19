@@ -22,6 +22,7 @@ import type { SettingsService } from '../settings/service.js';
 import type { Bootstrap } from '../setup/bootstrap.js';
 import type { StatsService } from '../stats/service.js';
 import type { TeamContextService } from '../team-context/service.js';
+import { auditPlugin } from '../audit/log.js';
 import { registerErrorHandler, sendNotFound } from './errors.js';
 import { sessionPlugin } from './plugins/session.js';
 import { authRoutes } from './routes/auth.js';
@@ -84,6 +85,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   await app.register(cookie);
   await app.register(sessionPlugin, { db: deps.db, secure: deps.secureCookies });
+  await app.register(auditPlugin, { db: deps.db });
 
   await healthRoutes(app, { db: deps.db, kubernetes: deps.kubernetes });
   await setupRoutes(app, deps.bootstrap);
@@ -107,6 +109,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     },
   });
   await settingsRoutes(app, {
+    db: deps.db,
     settings: deps.settings,
     credentials: deps.credentials,
     teamContext: deps.teamContext,

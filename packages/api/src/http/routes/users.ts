@@ -65,6 +65,7 @@ export async function userRoutes(app: FastifyInstance, db: Pool): Promise<void> 
         auth: 'local',
         passwordHash: await hashPassword(req.body.password),
       });
+      await req.audit('audit.user.create', user.email, { role: user.role });
       return reply.status(201).send(user);
     },
   );
@@ -85,6 +86,7 @@ export async function userRoutes(app: FastifyInstance, db: Pool): Promise<void> 
         throw badRequest('self_demotion', 'you cannot remove your own admin role');
       const user = await updateUserRole(db, req.params.id, req.body.role);
       if (!user) throw notFound('user');
+      await req.audit('audit.user.role', user.email, { role: user.role });
       return user;
     },
   );
@@ -103,6 +105,7 @@ export async function userRoutes(app: FastifyInstance, db: Pool): Promise<void> 
       if (req.params.id === req.user!.id)
         throw badRequest('self_delete', 'you cannot delete your own account');
       if (!(await deleteUser(db, req.params.id))) throw notFound('user');
+      await req.audit('audit.user.delete', req.params.id);
       return reply.status(204).send(null);
     },
   );
@@ -139,6 +142,7 @@ export async function userRoutes(app: FastifyInstance, db: Pool): Promise<void> 
     },
     async (req, reply) => {
       const { token, record } = await createApiToken(db, req.user!.id, req.body.name);
+      await req.audit('audit.token.create', record.id, { name: record.name });
       return reply.status(201).send({ id: record.id, name: record.name, token });
     },
   );
@@ -160,6 +164,7 @@ export async function userRoutes(app: FastifyInstance, db: Pool): Promise<void> 
         req.user!.role === 'admin' ? undefined : req.user!.id,
       );
       if (!ok) throw req.user!.role === 'admin' ? notFound('token') : forbidden('not your token');
+      await req.audit('audit.token.delete', req.params.id);
       return reply.status(204).send(null);
     },
   );
