@@ -343,7 +343,7 @@ export function ScmTab() {
                 p.type === 'gitlab'
                   ? 'Scopes api + write_repository.'
                   : p.type === 'github'
-                    ? 'A PAT with repo scope; GitHub App support arrives with M7.'
+                    ? 'A fine-grained PAT with contents and pull requests read & write.'
                     : 'An access token with repository and issue write scopes.'
               }
             />
@@ -384,12 +384,18 @@ export function ScmTab() {
   );
 }
 
+type RefreshResult =
+  | { status: 'updated'; version: TeamContextVersion }
+  | { status: 'unchanged' }
+  | { status: 'skipped'; reason: string };
+
 export function TeamContextTab() {
   const { settings } = useSettings();
   const [d, setD] = useState(settings.team_context);
   const { busy, result, run } = useSave('team_context');
   const [versions, setVersions] = useState<TeamContextVersion[]>([]);
   const [upload, setUpload] = useState<{ ok: boolean; message: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const load = () =>
     get<{ versions: TeamContextVersion[] }>('/api/settings/team-context')
       .then((r) => setVersions(r.versions))
@@ -418,8 +424,8 @@ export function TeamContextTab() {
       <h2>Team context</h2>
       <p className="hint">
         A directory with <code>mates.yaml</code> at its root (§6.3) and the markdown the mates read.
-        Upload it as a <code>.tar.gz</code>; fetching from a git URL on a configured provider
-        arrives with M7.
+        Upload it as a <code>.tar.gz</code>, or point at a repository on a configured provider:
+        Mates fetches the ref every five minutes and whenever you press Refresh now.
       </p>
       <div className="form-grid">
         <Field
@@ -430,20 +436,31 @@ export function TeamContextTab() {
           onChange={(v) => setD({ ...d, source: v as 'upload' | 'git' })}
           options={[
             { value: 'upload', label: 'Uploaded package' },
-            { value: 'git', label: 'Git repository (M7)' },
+            { value: 'git', label: 'Git repository on a configured provider' },
           ]}
         />
         {d.source === 'git' && (
           <>
             <Field
-              label="Git URL"
-              path="team_context.git_url"
-              type="url"
-              value={d.git_url}
-              onChange={(v) => setD({ ...d, git_url: v })}
+              label="Provider"
+              path="team_context.git_provider"
+              type="select"
+              value={d.git_provider}
+              onChange={(v) => setD({ ...d, git_provider: v })}
+              options={[
+                { value: '', label: '— choose —' },
+                ...settings.scm.providers.map((p) => ({ value: p.id, label: p.id })),
+              ]}
             />
             <Field
-              label="Ref"
+              label="Project path"
+              path="team_context.git_project"
+              value={d.git_project}
+              onChange={(v) => setD({ ...d, git_project: v })}
+              placeholder="platform/team-context"
+            />
+            <Field
+              label="Ref (branch or tag)"
               path="team_context.git_ref"
               value={d.git_ref}
               onChange={(v) => setD({ ...d, git_ref: v })}
@@ -451,7 +468,43 @@ export function TeamContextTab() {
           </>
         )}
       </div>
-      <SaveBar onSave={() => void run(d)} busy={busy} result={result} />
+      <div className="row">
+        <SaveBar onSave={() => void run(d)} busy={busy} result={result} />
+        {d.source === 'git' && (
+          <button
+            className="btn"
+            type="button"
+            disabled={refreshing}
+            onClick={() =>
+              void (async () => {
+                setRefreshing(true);
+                try {
+                  const r = await post<RefreshResult>('/api/settings/team-context/refresh');
+                  setUpload({
+                    ok: r.status !== 'skipped',
+                    message:
+                      r.status === 'updated'
+                        ? `Fetched version ${r.version.version}${r.version.active ? ' (active).' : `, rejected: ${r.version.errors.join('; ')}`}`
+                        : r.status === 'skipped'
+                          ? `Skipped: ${r.reason}`
+                          : 'Already up to date.',
+                  });
+                  await load();
+                } catch (err) {
+                  setUpload({
+                    ok: false,
+                    message: err instanceof ApiError ? err.message : String(err),
+                  });
+                } finally {
+                  setRefreshing(false);
+                }
+              })()
+            }
+          >
+            Refresh now
+          </button>
+        )}
+      </div>
       <div className="field" style={{ marginTop: 16 }}>
         <label htmlFor="tc-upload">Upload package (.tar.gz)</label>
         <input

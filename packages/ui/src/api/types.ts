@@ -71,7 +71,12 @@ export interface Settings {
       reviewers: string[];
     }[];
   };
-  team_context: { source: 'upload' | 'git'; git_url: string; git_ref: string };
+  team_context: {
+    source: 'upload' | 'git';
+    git_provider: string;
+    git_project: string;
+    git_ref: string;
+  };
   mates: Record<
     'intake' | 'implementer' | 'reviewer',
     {
