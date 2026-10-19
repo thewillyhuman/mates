@@ -46,6 +46,11 @@ const schema = z.object({
       enabled: z.boolean().optional(),
       issuer: z.string().optional(),
       clientId: z.string().optional(),
+      scopes: z.string().optional(),
+      groupsClaim: z.string().optional(),
+      groups: z
+        .object({ admin: z.array(z.string()).optional(), operator: z.array(z.string()).optional() })
+        .optional(),
     })
     .optional(),
 });

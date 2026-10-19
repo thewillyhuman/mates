@@ -140,6 +140,8 @@ export async function testApp(
       timeoutMs: 500,
     }),
     fakeClaude,
+    helm,
+    publicUrl: 'http://mates.test',
     secureCookies: false,
     version: 'test',
   });

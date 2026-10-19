@@ -154,6 +154,8 @@ const app = await buildApp({
   }),
   fakeClaude: config.fakeClaude,
   kubernetes,
+  helm,
+  publicUrl: config.publicUrl,
   secureCookies: config.publicUrl.startsWith('https://'),
   uiDir: config.uiDir ?? defaultUiDir(),
   version,

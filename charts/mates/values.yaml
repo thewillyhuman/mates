@@ -59,9 +59,17 @@ credentials:
 auth:
   oidc:
     enabled: false
-    issuer: ""
+    issuer: "" # e.g. https://login.example.com/realms/main
     clientId: ""
-    existingSecret: "" # key: oidc_client_secret
+    scopes: "openid profile email"
+    # Claim holding group names and which groups map to which role; users
+    # outside every group get the viewer role.
+    groupsClaim: groups
+    groups:
+      admin: []
+      operator: []
+    # The client secret lives in the credentials Secret under oidc_client_secret
+    # (set it from the UI or through credentials.existingSecret).
 
 networkPolicy:
   enabled: true

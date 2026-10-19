@@ -18,4 +18,5 @@ data:
             "serviceAccount" (printf "%s-runner" (include "mates.fullname" .))
             "imagePullSecrets" .Values.imagePullSecrets)
           "credentialsReadOnly" (ne .Values.credentials.existingSecret "")
-          "oidc" .Values.auth.oidc) | nindent 4 }}
+          "oidc" .Values.auth.oidc
+          "publicUrl" (include "mates.publicUrl" .)) | nindent 4 }}

@@ -25,10 +25,13 @@ import type { StatsService } from '../stats/service.js';
 import type { TeamContextFetcher } from '../team-context/fetcher.js';
 import type { TeamContextService } from '../team-context/service.js';
 import { auditPlugin } from '../audit/log.js';
+import { OidcClient } from '../auth/oidc.js';
+import type { HelmConfig } from '../settings/helm.js';
 import { registerErrorHandler, sendNotFound } from './errors.js';
 import { sessionPlugin } from './plugins/session.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes, type ReadinessDeps } from './routes/health.js';
+import { oidcRoutes } from './routes/oidc.js';
 import { internalRoutes } from './routes/internal.js';
 import { runsRoutes } from './routes/runs.js';
 import { settingsRoutes } from './routes/settings.js';
@@ -57,6 +60,10 @@ export interface AppDeps {
   readonly anthropicTest: Pick<AnthropicTest, 'run'>;
   readonly fakeClaude: boolean;
   readonly kubernetes?: ReadinessDeps['kubernetes'];
+  /** Helm-managed configuration (OIDC block). */
+  readonly helm?: HelmConfig | undefined;
+  /** External URL of this instance, used for the OIDC redirect URI. */
+  readonly publicUrl?: string | undefined;
   /** Cookies are marked Secure when the public URL is https. */
   readonly secureCookies: boolean;
   /** Built UI directory; when set and present, served at `/` with SPA fallback. */
@@ -95,6 +102,25 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   if (deps.metrics) await metricsRoute(app, deps.metrics);
   await setupRoutes(app, deps.bootstrap);
   await authRoutes(app, deps.db);
+  await oidcRoutes(app, {
+    db: deps.db,
+    secureCookies: deps.secureCookies,
+    client: async () => {
+      const o = deps.helm?.oidc;
+      if (!o?.enabled || !o.issuer || !o.clientId) return undefined;
+      const secret = await deps.credentials.read('oidc_client_secret');
+      if (!secret) return undefined;
+      return new OidcClient({
+        issuer: o.issuer,
+        clientId: o.clientId,
+        clientSecret: secret,
+        scopes: o.scopes ?? 'openid profile email',
+        redirectUri: `${deps.publicUrl ?? ''}/api/auth/oidc/callback`,
+        groupsClaim: o.groupsClaim ?? 'groups',
+        groups: { admin: o.groups?.admin ?? [], operator: o.groups?.operator ?? [] },
+      });
+    },
+  });
   await runsRoutes(app, {
     db: deps.db,
     bus: deps.bus,
