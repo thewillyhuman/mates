@@ -10,7 +10,7 @@ import {
   type NewEvent,
 } from '@mates/core';
 import { execFile } from 'node:child_process';
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { gzipSync } from 'node:zlib';
@@ -121,7 +121,9 @@ export async function runInvocation(deps: RunDeps): Promise<number> {
       });
       const needsRunBranch = ctx.mate === 'reviewer' || ctx.mate === 'implementer';
       if (needsRunBranch) {
-        await git.checkoutRunBranch(repo.branch, repo.base_branch).catch((err: Error) => {
+        // A fresh run (implementer, iteration 1) takes over a stale branch left by an earlier run of the ticket.
+        const fresh = ctx.mate === 'implementer' && ctx.iteration === 1;
+        await git.checkoutRunBranch(repo.branch, repo.base_branch, fresh).catch((err: Error) => {
           throw new InvocationError('checkout_failed', err.message);
         });
       }
@@ -199,7 +201,10 @@ export async function runInvocation(deps: RunDeps): Promise<number> {
       onLine,
       signal: deps.signal,
       fake: env.fakeClaude
-        ? { fixturesDir: env.fixturesDir, applyPatch: (f) => git.applyPatch(f) }
+        ? {
+            fixturesDir: env.fixturesDir,
+            applyPatch: (f) => applyFakePatch(git, repoDir, f, ctx, log),
+          }
         : undefined,
       env: env.anthropicApiKey ? { ANTHROPIC_API_KEY: env.anthropicApiKey } : {},
     });
@@ -270,6 +275,33 @@ export async function runInvocation(deps: RunDeps): Promise<number> {
     return reason === 'cancelled' ? 143 : 1;
   } finally {
     clearInterval(heartbeat);
+  }
+}
+
+/**
+ * Fake mode: apply the scenario's patch; when it no longer applies (the
+ * same scenario replayed on a later iteration) make a small visible change
+ * instead so the loop still sees a non-empty diff.
+ */
+async function applyFakePatch(
+  git: Git,
+  repoDir: string,
+  file: string,
+  ctx: InvocationContext,
+  log: Log,
+): Promise<void> {
+  try {
+    await git.run(['apply', '--check', '--whitespace=nowarn', file]);
+    await git.applyPatch(file);
+  } catch (err) {
+    log.warn('fake patch does not apply; appending a marker change instead', {
+      patch: path.basename(file),
+      error: (err as Error).message.slice(0, 200),
+    });
+    await appendFile(
+      path.join(repoDir, 'README.md'),
+      `\nMates fake iteration ${ctx.iteration}: ${path.basename(file)}\n`,
+    );
   }
 }
 

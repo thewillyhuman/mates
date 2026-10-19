@@ -69,10 +69,16 @@ export class Git {
   }
 
   /**
-   * Checks out the run branch: tracking the remote one when it exists
-   * (iteration > 1, reviewer), otherwise a new branch from the base.
+   * Checks out the run branch. When it exists on the remote it is fetched
+   * first so `--force-with-lease` has something to compare against; a fresh
+   * run (`startFromBase`) then starts again from the base branch and takes
+   * the stale branch over, while later iterations continue on it.
    */
-  async checkoutRunBranch(branch: string, baseBranch: string): Promise<'existing' | 'new'> {
+  async checkoutRunBranch(
+    branch: string,
+    baseBranch: string,
+    startFromBase = false,
+  ): Promise<'existing' | 'new' | 'reset'> {
     const remote = await this.run(['ls-remote', '--heads', 'origin', branch]);
     if (remote.trim()) {
       await this.run([
@@ -82,8 +88,12 @@ export class Git {
         'origin',
         `${branch}:refs/remotes/origin/${branch}`,
       ]);
-      await this.run(['checkout', '-B', branch, `origin/${branch}`]);
-      return 'existing';
+      if (!startFromBase) {
+        await this.run(['checkout', '-B', branch, `origin/${branch}`]);
+        return 'existing';
+      }
+      await this.run(['checkout', '-B', branch, `origin/${baseBranch}`]);
+      return 'reset';
     }
     await this.run(['checkout', '-B', branch, `origin/${baseBranch}`]);
     return 'new';
@@ -143,14 +153,28 @@ export class Git {
   }
 
   /**
-   * Pushes HEAD to `branch` with --force-with-lease. Refuses the default
-   * branch and anything the branching pattern could not have produced.
+   * Pushes HEAD to `branch` with an explicit lease: the remote branch must
+   * still be at the commit fetched by `checkoutRunBranch` (or not exist),
+   * which protects against a concurrent writer while letting a fresh run
+   * take over a stale branch. Refuses the default branch and anything the
+   * branching pattern could not have produced (§10.5).
    */
   async push(branch: string, pattern: string, defaultBranch: string): Promise<void> {
     if (branch === defaultBranch || !branchMatchesPattern(branch, pattern)) {
       throw new PushRefusedError(`refusing to push to "${branch}": not a ${pattern} branch`);
     }
-    await this.run(['push', '--force-with-lease', 'origin', `HEAD:refs/heads/${branch}`]);
+    const expected = await this.run([
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      `refs/remotes/origin/${branch}`,
+    ]).catch(() => '');
+    await this.run([
+      'push',
+      `--force-with-lease=refs/heads/${branch}:${expected.trim()}`,
+      'origin',
+      `HEAD:refs/heads/${branch}`,
+    ]);
   }
 
   /** Applies a patch file (fake mode); `git apply` fails loudly on a mismatch. */

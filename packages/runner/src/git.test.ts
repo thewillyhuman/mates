@@ -77,6 +77,29 @@ describe('Git', () => {
     );
   });
 
+  it('lets a fresh run take over a stale remote branch with a lease', async () => {
+    const fresh = new Git({
+      cwd: path.join(await mkdtemp(path.join(tmpdir(), 'mates-ws3-')), 'repo'),
+      username: 'u',
+      token: undefined,
+      authorName: 'M',
+      authorEmail: 'm@m',
+    });
+    await fresh.clone(origin, 'main');
+    expect(await fresh.checkoutRunBranch('mates/API-198-retry-policy', 'main', true)).toBe('reset');
+    expect((await fresh.run(['log', '-1', '--format=%s'])).trim()).toBe('seed');
+    await fresh.run(['commit', '--allow-empty', '-q', '-m', 'API-198: fresh start']);
+    await fresh.push('mates/API-198-retry-policy', 'mates/{ticket}-{slug}', 'main');
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      'git',
+      ['log', '-1', '--format=%s', 'mates/API-198-retry-policy'],
+      { cwd: origin },
+    );
+    expect(stdout.trim()).toBe('API-198: fresh start');
+  });
+
   it('never puts the token in the remote url', async () => {
     const remotes = await git.run(['remote', '-v']);
     expect(remotes).not.toContain('secret-token');
