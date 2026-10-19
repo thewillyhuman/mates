@@ -13,7 +13,7 @@ COPY packages/runner/package.json packages/runner/
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter mates-api... --filter mates-ui...
 COPY packages packages
-RUN pnpm --filter mates-ui build && pnpm --filter mates-api... build
+RUN pnpm --filter mates-ui... build && pnpm --filter mates-api... build
 # Flatten the API and its workspace deps into a self-contained tree.
 RUN pnpm --filter mates-api --prod deploy --legacy /out/api \
  && cp -r packages/api/public /out/api/public
