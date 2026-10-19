@@ -39,6 +39,8 @@ export interface InvocationView {
   /** Most recent condensed tool-use or text line, for board cards. */
   lastLine: string | null;
   failure: { reason: string; detail: string } | null;
+  /** The orchestrator recorded what it did with this invocation's result (§7.5). */
+  outcomeRecorded: boolean;
   /** From `usage.recorded` (final result); authoritative. */
   usage: UsageTotals;
   /** From heartbeats while running; an estimate until `usage` arrives. */
@@ -91,6 +93,10 @@ export interface RunProjection {
   stageReason: string;
   stageChangedAt: string;
   blockedReason: BlockedReason | null;
+  /** Why the run was blocked before a human moved it back to `queued` (decision 0015). */
+  resumedFrom: BlockedReason | null;
+  /** How many times a human retried out of the iteration cap; each allows one more iteration. */
+  capResumes: number;
   paused: boolean;
   finishedAt: string | null;
 
@@ -125,6 +131,17 @@ export interface RunProjection {
 }
 
 export class ProjectionError extends Error {}
+
+/** Events the orchestrator appends, with the invocation id, once it has acted on a result. */
+const OUTCOME_TYPES: ReadonlySet<string> = new Set([
+  'intake.passed',
+  'intake.needs_clarification',
+  'review.verdict',
+  'mr.opened',
+  'mr.updated',
+  'run.failed',
+  'run.budget_exceeded',
+]);
 
 function zeroUsage(): UsageTotals {
   return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0 };
@@ -195,6 +212,8 @@ export function projectRun(events: readonly RunEvent[]): RunProjection {
     stageReason: 'created',
     stageChangedAt: first.ts,
     blockedReason: null,
+    resumedFrom: null,
+    capResumes: 0,
     paused: false,
     finishedAt: null,
     iteration: 0,
@@ -223,14 +242,23 @@ export function projectRun(events: readonly RunEvent[]): RunProjection {
   for (const e of events) {
     p.lastEventId = e.id;
     p.lastEventAt = e.ts;
+    if (OUTCOME_TYPES.has(e.type) && e.invocation_id) {
+      const inv = invocations.get(e.invocation_id);
+      if (inv) inv.outcomeRecorded = true;
+    }
     switch (e.type) {
       case 'run.created':
         break;
       case 'run.stage_changed':
+        if (e.payload.from === 'blocked' && e.payload.to === 'queued') {
+          p.resumedFrom = p.blockedReason;
+          if (p.blockedReason === 'iteration_cap') p.capResumes += 1;
+        }
         p.stage = e.payload.to;
         p.stageReason = e.payload.reason;
         p.stageChangedAt = e.ts;
         p.blockedReason = e.payload.to === 'blocked' ? (e.payload.reason as BlockedReason) : null;
+        if (e.payload.to === 'blocked') p.resumedFrom = null;
         if (isTerminal(e.payload.to)) p.finishedAt = e.ts;
         break;
       case 'run.cancelled':
@@ -243,6 +271,9 @@ export function projectRun(events: readonly RunEvent[]): RunProjection {
         break;
       case 'run.paused':
         p.paused = true;
+        break;
+      case 'run.budget_changed':
+        p.budgetUsd = e.payload.budget_usd;
         break;
       case 'run.resumed':
         p.paused = false;
@@ -278,6 +309,7 @@ export function projectRun(events: readonly RunEvent[]): RunProjection {
           lastHeartbeatAt: null,
           lastLine: null,
           failure: null,
+          outcomeRecorded: false,
           usage: zeroUsage(),
           liveUsage: null,
         };
@@ -391,6 +423,7 @@ export function projectRun(events: readonly RunEvent[]): RunProjection {
         p.trackerStatus = e.payload.to;
         break;
       case 'tracker.commented':
+      case 'tracker.transition_skipped':
         break;
       case 'nudge.added':
         p.nudges.push({

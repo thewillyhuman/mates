@@ -30,9 +30,11 @@ export const BLOCKED_REASONS = ['needs_clarification', 'iteration_cap', 'budget_
 export type BlockedReason = (typeof BLOCKED_REASONS)[number];
 
 const TRANSITIONS: Readonly<Record<Stage, readonly Stage[]>> = {
-  // `queued → implementing` resumes a run that was blocked after intake had
-  // already passed (iteration cap or budget); intake is not repeated.
-  queued: ['intake', 'implementing', 'cancelled', 'failed'],
+  // `queued → implementing|reviewing` resume a run that was blocked after
+  // intake had already passed (iteration cap or budget); intake is not
+  // repeated. `queued → blocked` is the budget check before the first spawn
+  // after such a resume (decision 0015).
+  queued: ['intake', 'implementing', 'reviewing', 'blocked', 'cancelled', 'failed'],
   intake: ['implementing', 'blocked', 'cancelled', 'failed'],
   implementing: ['reviewing', 'blocked', 'cancelled', 'failed'],
   reviewing: ['implementing', 'mr_ready', 'blocked', 'cancelled', 'failed'],

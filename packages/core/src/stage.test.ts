@@ -12,6 +12,8 @@ import {
 const legal: Array<[Stage, Stage]> = [
   ['queued', 'intake'],
   ['queued', 'implementing'],
+  ['queued', 'reviewing'],
+  ['queued', 'blocked'],
   ['intake', 'implementing'],
   ['intake', 'blocked'],
   ['implementing', 'reviewing'],

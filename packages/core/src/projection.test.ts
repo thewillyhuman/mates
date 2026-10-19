@@ -353,6 +353,35 @@ describe('projectRun', () => {
     expect(p.blockedReason).toBe('budget_exceeded');
   });
 
+  it('tracks resumes from a block, cap allowances, budget changes and outcomes', () => {
+    const p = projectRun(
+      log()
+        .add('run.created', created())
+        .add('run.stage_changed', { from: 'queued', to: 'intake', reason: 'scheduled' })
+        .add(
+          'invocation.scheduled',
+          { mate: 'intake', iteration: 0, job_name: 'j', model: 'm' },
+          'in',
+        )
+        .add(
+          'invocation.finished',
+          { exit_code: 0, duration_ms: 1, session_id: null, result: null },
+          'in',
+        )
+        .add('intake.passed', { repo: 'r', base_branch: 'main', plan: [], scope_notes: '' }, 'in')
+        .add('run.stage_changed', { from: 'intake', to: 'reviewing', reason: 'x' })
+        .add('run.stage_changed', { from: 'reviewing', to: 'blocked', reason: 'iteration_cap' })
+        .add('run.stage_changed', { from: 'blocked', to: 'queued', reason: 'retry' })
+        .add('run.budget_changed', { budget_usd: 50, by: 'ana' })
+        .add('tracker.transition_skipped', { to: 'Needs Info', reason: 'no transition' }).events,
+    );
+    expect(p.resumedFrom).toBe('iteration_cap');
+    expect(p.capResumes).toBe(1);
+    expect(p.budgetUsd).toBe(50);
+    expect(p.invocations[0]?.outcomeRecorded).toBe(true);
+    expect(p.stage).toBe('queued');
+  });
+
   it('records cancellation and tracker status', () => {
     const p = projectRun(
       log()

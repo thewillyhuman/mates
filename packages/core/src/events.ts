@@ -80,6 +80,8 @@ export const eventPayloadSchemas = {
   }),
   'run.paused': z.object({ by: z.string() }),
   'run.resumed': z.object({ by: z.string() }),
+  /** A human raised (or cleared) the per-run USD budget on retry (decision 0015). */
+  'run.budget_changed': z.object({ budget_usd: z.number().nullable(), by: z.string() }),
 
   'intake.started': z.object({}),
   'intake.finished': z.object({}),
@@ -161,6 +163,8 @@ export const eventPayloadSchemas = {
   'mr.updated': z.object({ description_updated: z.boolean() }),
   'mr.marked_ready': z.object({ mr_id: z.string() }),
   'tracker.transitioned': z.object({ from: z.string(), to: z.string() }),
+  /** The status map asked for a transition the tracker could not perform (§8). */
+  'tracker.transition_skipped': z.object({ to: z.string(), reason: z.string() }),
   'tracker.commented': z.object({
     comment_id: z.string(),
     kind: z.enum(['clarification', 'status', 'nudge_echo']),
