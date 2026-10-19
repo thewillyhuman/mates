@@ -4,6 +4,20 @@ All notable changes to Mates. Format: one entry per milestone, newest first.
 
 ## Unreleased
 
+### M6 — UI
+
+- Board and ticket detail after the mockups, live over SSE: stats strip,
+  "needs a human" lane, six columns, stepper, timeline with verdicts,
+  diff per iteration, raw log, live tail, run facts, nudge composer,
+  pause/resume/retry/cancel.
+- Tickets table with filters and CSV export; Usage page with hand-written
+  SVG charts; Mates page; Settings wizard with all "Test" buttons,
+  Helm-managed badges, users, API tokens, prompts, pricing, checklist.
+- API additions: tickets endpoints, users and personal API tokens (bearer
+  auth), the Anthropic test Job, an OpenAPI dump for client generation.
+- Playwright tests for the board, the detail timeline, a nudge and the
+  wizard, run in CI.
+
 ### M5 — Cost ledger
 
 - `computeCost` / `costDiscrepancy` in `@mates/core`; ledger rows per
