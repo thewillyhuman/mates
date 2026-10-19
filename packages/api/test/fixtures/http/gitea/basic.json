@@ -1,0 +1,9 @@
+[
+  { "request": { "method": "GET", "url": "/api/v1/repos/mates/webhook-service" }, "response": { "status": 200, "body": { "full_name": "mates/webhook-service", "clone_url": "http://gitea:3000/mates/webhook-service.git", "default_branch": "main", "html_url": "http://gitea:3000/mates/webhook-service" } } },
+  { "request": { "method": "GET", "url": "/api/v1/repos/mates/webhook-service/labels?limit=100" }, "response": { "status": 200, "body": [ { "id": 5, "name": "mates" } ] } },
+  { "request": { "method": "POST", "url": "/api/v1/repos/mates/webhook-service/pulls" }, "response": { "status": 201, "body": { "number": 3, "html_url": "http://gitea:3000/mates/webhook-service/pulls/3", "state": "open", "merged": false, "title": "WIP: API-198: Retry policy", "head": { "ref": "mates/API-198-retry" }, "base": { "ref": "main" } } } },
+  { "request": { "method": "GET", "url": "/api/v1/repos/mates/webhook-service/pulls/3" }, "response": { "status": 200, "body": { "number": 3, "html_url": "http://gitea:3000/mates/webhook-service/pulls/3", "state": "open", "merged": false, "title": "WIP: API-198: Retry policy", "head": { "ref": "mates/API-198-retry" }, "base": { "ref": "main" } } } },
+  { "request": { "method": "PATCH", "url": "/api/v1/repos/mates/webhook-service/pulls/3" }, "response": { "status": 201, "body": { "number": 3, "html_url": "http://gitea:3000/mates/webhook-service/pulls/3", "state": "open", "merged": false, "title": "API-198: Retry policy", "head": { "ref": "mates/API-198-retry" }, "base": { "ref": "main" } } } },
+  { "request": { "method": "POST", "url": "/api/v1/repos/mates/webhook-service/issues/3/comments" }, "response": { "status": 201, "body": { "id": 1 } } },
+  { "request": { "method": "GET", "url": "/api/v1/user/repos?limit=50" }, "response": { "status": 200, "body": [ { "full_name": "mates/webhook-service" } ] } }
+]
