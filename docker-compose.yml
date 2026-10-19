@@ -1,0 +1,14 @@
+# Local Postgres for `pnpm --filter mates-api dev`.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mates
+      POSTGRES_PASSWORD: mates
+      POSTGRES_DB: mates
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata: {}
