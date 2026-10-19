@@ -3,18 +3,21 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Pool } from '../../db/pool.js';
+import type { Orchestrator } from '../../orchestrator/reconciler.js';
+import { getBlob } from '../../runs/blobs.js';
 import type { EventBus } from '../../runs/bus.js';
 import { listEvents } from '../../runs/events.js';
 import { createRun, findRun, getRunDetail, listRuns } from '../../runs/repository.js';
 import { runDetailSchema, runSummarySchema, toRunDetail, toRunSummary } from '../../runs/views.js';
 import type { RunDefaults } from '../../settings/helm.js';
-import { notFound } from '../errors.js';
+import { forbidden, notFound } from '../errors.js';
 import { openSse, sendRunEvents } from '../sse.js';
 
 export interface RunsRouteDeps {
   db: Pool;
   bus: EventBus;
   defaults: RunDefaults;
+  orchestrator: Pick<Orchestrator, 'cancel'>;
 }
 
 const eventSchema = z.object({
@@ -124,6 +127,47 @@ export async function runsRoutes(app: FastifyInstance, deps: RunsRouteDeps): Pro
       const events = rows.slice(0, req.query.limit);
       const more = rows.length > req.query.limit;
       return { events, next_after: more ? events.at(-1)!.id : null };
+    },
+  );
+
+  r.post(
+    '/api/runs/:id/cancel',
+    {
+      preHandler: operator,
+      schema: {
+        tags: ['runs'],
+        params: z.object({ id: z.string().uuid() }),
+        body: z.object({ reason: z.string().max(500).default('') }).default({ reason: '' }),
+        response: { 200: runDetailSchema },
+      },
+    },
+    async (req) => {
+      if (!(await findRun(deps.db, req.params.id))) throw notFound('run');
+      await deps.orchestrator.cancel(req.params.id, req.user!.email, req.body.reason);
+      return toRunDetail((await getRunDetail(deps.db, req.params.id))!);
+    },
+  );
+
+  r.get(
+    '/api/runs/:id/blobs/:blobId',
+    {
+      preHandler: viewer,
+      schema: {
+        tags: ['runs'],
+        params: z.object({ id: z.string().uuid(), blobId: z.string().uuid() }),
+        hide: true,
+      },
+    },
+    async (req, reply) => {
+      const blob = await getBlob(deps.db, req.params.blobId);
+      if (!blob || blob.runId !== req.params.id) throw notFound('blob');
+      // Transcripts may contain more than operators should share with viewers (§12).
+      if (blob.kind === 'transcript' && req.user!.role === 'viewer')
+        throw forbidden('transcripts require the operator role');
+      return reply
+        .header('content-type', blob.contentType)
+        .header('content-length', String(blob.sizeBytes))
+        .send(blob.data);
     },
   );
 

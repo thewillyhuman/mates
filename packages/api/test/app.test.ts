@@ -4,11 +4,17 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { freshDatabase, stopTestDatabase, type TestDatabase } from './db.js';
-import { buildApp } from '../src/http/app.js';
+import { buildApp, type AppDeps } from '../src/http/app.js';
+import { FakeJobsClient } from '../src/kubernetes/jobs.js';
 import { createLogger } from '../src/logger.js';
+import { Orchestrator } from '../src/orchestrator/reconciler.js';
+import { InvocationSpawner } from '../src/orchestrator/spawner.js';
 import { EventBus } from '../src/runs/bus.js';
 import { InMemorySecretStore } from '../src/secrets/store.js';
+import { CredentialStore } from '../src/settings/credentials.js';
+import { SettingsService } from '../src/settings/service.js';
 import { Bootstrap } from '../src/setup/bootstrap.js';
+import { TeamContextService } from '../src/team-context/service.js';
 
 type Cookies = { cookies: { name: string; value: string }[] };
 
@@ -18,6 +24,43 @@ function cookieHeader(res: Cookies): string {
 }
 function csrf(res: Cookies): string {
   return res.cookies.find((c) => c.name === 'mates_csrf')!.value;
+}
+
+/** The non-auth dependencies of buildApp, for tests that only need setup + auth. */
+function stubDeps(db: TestDatabase, bootstrap: Bootstrap): Omit<AppDeps, 'uiDir' | 'kubernetes'> {
+  const log = createLogger('silent');
+  const bus = new EventBus();
+  const secrets = new InMemorySecretStore();
+  const settings = new SettingsService(db.pool);
+  const teamContext = new TeamContextService(db.pool, async () => []);
+  const spawner = new InvocationSpawner({
+    db: db.pool,
+    bus,
+    jobs: new FakeJobsClient(),
+    log,
+    internalKey: 'k'.repeat(32),
+    release: 'mates',
+    namespace: 'mates',
+    apiInternalUrl: 'http://api',
+    fakeClaude: true,
+    helm: {},
+    defaultRunnerImage: 'img',
+  });
+  return {
+    db: db.pool,
+    log,
+    bootstrap,
+    bus,
+    internalKey: 'k'.repeat(32),
+    runDefaults: { maxIterations: 4, budgetUsd: 25 },
+    settings,
+    credentials: new CredentialStore(secrets, db.pool, 'mates', false),
+    teamContext,
+    orchestrator: new Orchestrator({ db: db.pool, bus, log, settings, teamContext, spawner }),
+    fakeClaude: true,
+    secureCookies: false,
+    version: 'test',
+  };
 }
 
 describe('setup and auth over HTTP', () => {
@@ -33,16 +76,7 @@ describe('setup and auth over HTTP', () => {
       release: 'mates',
       log: createLogger('silent'),
     });
-    app = await buildApp({
-      db: db.pool,
-      log: createLogger('silent'),
-      bootstrap,
-      bus: new EventBus(),
-      internalKey: 'k'.repeat(32),
-      runDefaults: { maxIterations: 4, budgetUsd: 25 },
-      secureCookies: false,
-      version: 'test',
-    });
+    app = await buildApp(stubDeps(db, bootstrap));
     await app.ready();
   });
   afterAll(async () => {
@@ -140,17 +174,7 @@ describe('setup and auth over HTTP', () => {
   it('serves the SPA with a fallback to index.html, but JSON 404s under /api', async () => {
     const uiDir = await mkdtemp(path.join(tmpdir(), 'mates-ui-'));
     await writeFile(path.join(uiDir, 'index.html'), '<!doctype html><title>Mates</title>');
-    const ui = await buildApp({
-      db: db.pool,
-      log: createLogger('silent'),
-      bootstrap,
-      bus: new EventBus(),
-      internalKey: 'k'.repeat(32),
-      runDefaults: { maxIterations: 4, budgetUsd: 25 },
-      secureCookies: false,
-      version: 'test',
-      uiDir,
-    });
+    const ui = await buildApp({ ...stubDeps(db, bootstrap), uiDir });
     try {
       expect((await ui.inject({ url: '/' })).body).toContain('<title>Mates</title>');
       expect((await ui.inject({ url: '/runs/abc' })).body).toContain('<title>Mates</title>');

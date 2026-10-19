@@ -4,6 +4,12 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { InvalidInvocationTokenError, verifyInvocationToken } from '../../auth/invocation-token.js';
 import type { Pool } from '../../db/pool.js';
+import {
+  ContextUnavailableError,
+  prepareContextBundle,
+  type PrepareDeps,
+} from '../../orchestrator/prepare.js';
+import { BLOB_KINDS, MAX_BLOB_BYTES, storeBlob, type BlobKind } from '../../runs/blobs.js';
 import type { EventBus } from '../../runs/bus.js';
 import { appendEvents, countTailEvents } from '../../runs/events.js';
 import {
@@ -19,6 +25,7 @@ export interface InternalRouteDeps {
   db: Pool;
   bus: EventBus;
   internalKey: string;
+  context: Omit<PrepareDeps, 'db'>;
 }
 
 /** Live-tail lines kept per invocation before the rest is dropped (§17.4). */
@@ -83,6 +90,62 @@ export async function internalRoutes(app: FastifyInstance, deps: InternalRouteDe
       await applyInvocationSideEffects(deps.db, invocation.id, kept);
       await appendEvents(deps.db, deps.bus, invocation.runId, kept);
       return reply.status(202).send({ accepted: kept.length, dropped });
+    },
+  );
+
+  // Raw bodies for blob uploads; the limit is enforced per route.
+  app.addContentTypeParser(
+    ['text/plain', 'text/x-diff', 'application/gzip', 'application/octet-stream'],
+    { parseAs: 'buffer', bodyLimit: MAX_BLOB_BYTES },
+    (_req, body, done) => done(null, body),
+  );
+
+  r.post(
+    '/internal/invocations/:id/blobs/:kind',
+    {
+      schema: {
+        tags: ['internal'],
+        params: z.object({ id: z.string().uuid(), kind: z.enum(BLOB_KINDS) }),
+        response: { 201: z.object({ id: z.string() }) },
+      },
+      bodyLimit: MAX_BLOB_BYTES,
+    },
+    async (req, reply) => {
+      const invocation = await authenticate(req, req.params.id);
+      const data = Buffer.isBuffer(req.body)
+        ? req.body
+        : Buffer.from(typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? ''));
+      const id = await storeBlob(deps.db, {
+        runId: invocation.runId,
+        invocationId: invocation.id,
+        kind: req.params.kind as BlobKind,
+        contentType: req.headers['content-type']?.split(';')[0] ?? 'application/octet-stream',
+        data,
+      });
+      return reply.status(201).send({ id });
+    },
+  );
+
+  r.get(
+    '/internal/invocations/:id/context',
+    { schema: { tags: ['internal'], params: z.object({ id: z.string().uuid() }), hide: true } },
+    async (req, reply) => {
+      const invocation = await authenticate(req, req.params.id);
+      if (invocation.status !== 'pending' && invocation.status !== 'running') {
+        throw new AppError(
+          409,
+          'invocation_finished',
+          'context is only served to pending or running invocations',
+        );
+      }
+      try {
+        const bundle = await prepareContextBundle({ db: deps.db, ...deps.context }, invocation.id);
+        return reply.header('content-type', 'application/gzip').send(bundle);
+      } catch (err) {
+        if (err instanceof ContextUnavailableError)
+          throw new AppError(409, 'context_unavailable', err.message);
+        throw err;
+      }
     },
   );
 }

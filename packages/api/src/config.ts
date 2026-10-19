@@ -28,6 +28,14 @@ const schema = z.object({
   MATES_UI_DIR: z.string().optional(),
   /** Helm-managed settings file (chart ConfigMap); read by the settings layer. */
   MATES_CONFIG_FILE: z.string().optional(),
+  /** URL runner pods use to reach this API; defaults to the public URL. */
+  MATES_INTERNAL_URL: z.string().url().optional(),
+  /** `1` replays fixtures instead of calling Claude in runner pods (§15.1). */
+  MATES_FAKE_CLAUDE: z.string().optional(),
+  /** Runner image when neither settings nor mates.yaml name one. */
+  MATES_RUNNER_IMAGE: z.string().default('ghcr.io/thewillyhuman/mates-runner:latest'),
+  /** `kubernetes` spawns real Jobs; `fake` keeps them in memory (local development). */
+  MATES_JOBS: z.enum(['kubernetes', 'fake']).optional(),
 });
 
 export interface Config {
@@ -43,6 +51,10 @@ export interface Config {
   readonly inCluster: boolean;
   readonly uiDir: string | undefined;
   readonly configFile: string | undefined;
+  readonly internalUrl: string;
+  readonly fakeClaude: boolean;
+  readonly runnerImage: string;
+  readonly jobs: 'kubernetes' | 'fake';
 }
 
 /** Parses and validates the environment. Throws with the offending variable names. */
@@ -69,5 +81,9 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     inCluster,
     uiDir: e.MATES_UI_DIR,
     configFile: e.MATES_CONFIG_FILE,
+    internalUrl: (e.MATES_INTERNAL_URL ?? e.MATES_PUBLIC_URL).replace(/\/+$/, ''),
+    fakeClaude: e.MATES_FAKE_CLAUDE === '1',
+    runnerImage: e.MATES_RUNNER_IMAGE,
+    jobs: e.MATES_JOBS ?? (inCluster ? 'kubernetes' : 'fake'),
   };
 }

@@ -11,15 +11,20 @@ import { access } from 'node:fs/promises';
 import path from 'node:path';
 import type { Pool } from '../db/pool.js';
 import type { Logger } from '../logger.js';
+import type { Orchestrator } from '../orchestrator/reconciler.js';
 import type { EventBus } from '../runs/bus.js';
+import type { CredentialStore } from '../settings/credentials.js';
 import type { RunDefaults } from '../settings/helm.js';
+import type { SettingsService } from '../settings/service.js';
 import type { Bootstrap } from '../setup/bootstrap.js';
+import type { TeamContextService } from '../team-context/service.js';
 import { registerErrorHandler, sendNotFound } from './errors.js';
 import { sessionPlugin } from './plugins/session.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes, type ReadinessDeps } from './routes/health.js';
 import { internalRoutes } from './routes/internal.js';
 import { runsRoutes } from './routes/runs.js';
+import { settingsRoutes } from './routes/settings.js';
 import { setupRoutes } from './routes/setup.js';
 
 export interface AppDeps {
@@ -29,6 +34,11 @@ export interface AppDeps {
   readonly bus: EventBus;
   readonly internalKey: string;
   readonly runDefaults: RunDefaults;
+  readonly settings: SettingsService;
+  readonly credentials: CredentialStore;
+  readonly teamContext: TeamContextService;
+  readonly orchestrator: Pick<Orchestrator, 'cancel'>;
+  readonly fakeClaude: boolean;
   readonly kubernetes?: ReadinessDeps['kubernetes'];
   /** Cookies are marked Secure when the public URL is https. */
   readonly secureCookies: boolean;
@@ -66,8 +76,27 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await healthRoutes(app, { db: deps.db, kubernetes: deps.kubernetes });
   await setupRoutes(app, deps.bootstrap);
   await authRoutes(app, deps.db);
-  await runsRoutes(app, { db: deps.db, bus: deps.bus, defaults: deps.runDefaults });
-  await internalRoutes(app, { db: deps.db, bus: deps.bus, internalKey: deps.internalKey });
+  await runsRoutes(app, {
+    db: deps.db,
+    bus: deps.bus,
+    defaults: deps.runDefaults,
+    orchestrator: deps.orchestrator,
+  });
+  await internalRoutes(app, {
+    db: deps.db,
+    bus: deps.bus,
+    internalKey: deps.internalKey,
+    context: {
+      settings: deps.settings,
+      teamContext: deps.teamContext,
+      fakeClaude: deps.fakeClaude,
+    },
+  });
+  await settingsRoutes(app, {
+    settings: deps.settings,
+    credentials: deps.credentials,
+    teamContext: deps.teamContext,
+  });
 
   const serveUi = deps.uiDir !== undefined && (await exists(deps.uiDir));
   if (serveUi) {
