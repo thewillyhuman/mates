@@ -60,6 +60,12 @@ deferred), phone layout (may).
 - **OIDC** keeps the pending login (state, nonce, PKCE verifier) in a
   ten-minute HttpOnly cookie scoped to `/api/auth/oidc`, so no server
   state is needed and a restarted API still completes a login in flight.
+- **Runner egress** no longer excludes the private ranges by default.
+  kindnet enforces NetworkPolicies about ten seconds after a pod starts,
+  and the e2e caught the exclusion: clones succeeded and pushes to the
+  in-cluster Gitea timed out. Self-hosted SCM and Jira usually sit on
+  private addresses, so sealing other namespaces off is now the
+  operator's choice through `networkPolicy.egressDenyCidrs`.
 - Nothing in the spec's M7 list was dropped. Pod Security `restricted` is
   enforced by labelling the namespace in the kind e2e; the chart does not
   label the namespace itself because it rarely owns it.
