@@ -1,0 +1,61 @@
+diff --git a/src/webhook/retry.py b/src/webhook/retry.py
+index baf322f..9629ae1 100644
+--- a/src/webhook/retry.py
++++ b/src/webhook/retry.py
+@@ -1,19 +1,26 @@
+ """Retry policy for webhook delivery."""
+ 
++MAX_WINDOW_SECONDS = 600.0
++
+ 
+ class RetryPolicy:
+-    """Exponential backoff starting at ``base_seconds``."""
++    """Exponential backoff, capped so all attempts fit in ten minutes."""
+ 
+     def __init__(self, base_seconds: float = 1.0, max_attempts: int = 5) -> None:
+         self.base_seconds = base_seconds
+         self.max_attempts = max_attempts
+ 
+     def delay(self, attempt: int) -> float:
+-        """Delay before ``attempt`` (1-based)."""
++        """Delay before ``attempt`` (1-based), never beyond the window."""
+         if attempt < 1:
+             raise ValueError("attempt must be >= 1")
+-        return self.base_seconds * (2 ** (attempt - 1))
++        return min(self.base_seconds * (2 ** (attempt - 1)), MAX_WINDOW_SECONDS)
+ 
+     def should_retry(self, attempt: int) -> bool:
+         """Retry while ``attempt`` is below the configured ceiling."""
+         return attempt < self.max_attempts
++
++
++def dead_letter(delivery: dict, attempts: int) -> dict:
++    """Marks an exhausted delivery for the dead-letter queue."""
++    return {**delivery, "status": "dead_letter", "attempts": attempts}
+diff --git a/tests/test_retry.py b/tests/test_retry.py
+index da294a6..630f9bb 100644
+--- a/tests/test_retry.py
++++ b/tests/test_retry.py
+@@ -4,7 +4,7 @@ import unittest
+ 
+ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+ 
+-from webhook.retry import RetryPolicy  # noqa: E402
++from webhook.retry import RetryPolicy, dead_letter  # noqa: E402
+ 
+ 
+ class RetryPolicyTest(unittest.TestCase):
+@@ -21,6 +21,13 @@ class RetryPolicyTest(unittest.TestCase):
+         self.assertTrue(p.should_retry(4))
+         self.assertFalse(p.should_retry(5))
+ 
++    def test_delay_is_capped(self):
++        self.assertEqual(RetryPolicy(base_seconds=100.0).delay(10), 600.0)
++
++    def test_exhausted_delivery_goes_to_dead_letter(self):
++        d = dead_letter({"id": "d1"}, attempts=5)
++        self.assertEqual(d["status"], "dead_letter")
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

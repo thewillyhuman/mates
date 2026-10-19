@@ -1,0 +1,38 @@
+diff --git a/src/webhook/retry.py b/src/webhook/retry.py
+index b29dcdd..baf322f 100644
+--- a/src/webhook/retry.py
++++ b/src/webhook/retry.py
+@@ -4,8 +4,9 @@
+ class RetryPolicy:
+     """Exponential backoff starting at ``base_seconds``."""
+ 
+-    def __init__(self, base_seconds: float = 1.0) -> None:
++    def __init__(self, base_seconds: float = 1.0, max_attempts: int = 5) -> None:
+         self.base_seconds = base_seconds
++        self.max_attempts = max_attempts
+ 
+     def delay(self, attempt: int) -> float:
+         """Delay before ``attempt`` (1-based)."""
+@@ -14,4 +15,5 @@ class RetryPolicy:
+         return self.base_seconds * (2 ** (attempt - 1))
+ 
+     def should_retry(self, attempt: int) -> bool:
+-        return True
++        """Retry while ``attempt`` is below the configured ceiling."""
++        return attempt < self.max_attempts
+diff --git a/tests/test_retry.py b/tests/test_retry.py
+index c50e748..da294a6 100644
+--- a/tests/test_retry.py
++++ b/tests/test_retry.py
+@@ -16,6 +16,11 @@ class RetryPolicyTest(unittest.TestCase):
+         with self.assertRaises(ValueError):
+             RetryPolicy().delay(0)
+ 
++    def test_stops_at_max_attempts(self):
++        p = RetryPolicy(max_attempts=5)
++        self.assertTrue(p.should_retry(4))
++        self.assertFalse(p.should_retry(5))
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
