@@ -5,6 +5,7 @@ import { buildApp } from '../src/http/app.js';
 import { Integrations, type IntegrationOverrides } from '../src/integrations.js';
 import { FakeJobsClient } from '../src/kubernetes/jobs.js';
 import { createLogger } from '../src/logger.js';
+import { AnthropicTest } from '../src/orchestrator/anthropic-test.js';
 import { MergeRequests } from '../src/orchestrator/merge-requests.js';
 import { JobMonitor } from '../src/orchestrator/monitor.js';
 import { Orchestrator } from '../src/orchestrator/reconciler.js';
@@ -125,6 +126,17 @@ export async function testApp(
     orchestrator,
     trackerSync,
     stats: new StatsService(db.pool),
+    anthropicTest: new AnthropicTest({
+      jobs,
+      log,
+      namespace: 'mates',
+      release: 'mates',
+      image: 'mates-runner:test',
+      serviceAccount: 'mates-runner',
+      fakeClaude,
+      pollMs: 5,
+      timeoutMs: 500,
+    }),
     fakeClaude,
     secureCookies: false,
     version: 'test',

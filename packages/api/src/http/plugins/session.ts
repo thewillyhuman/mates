@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Pool } from '../../db/pool.js';
+import { findUserByApiToken, TOKEN_PREFIX } from '../../auth/api-tokens.js';
 import { createSession, deleteSession, findSession } from '../../auth/sessions.js';
 import { hasRole, type Role, type User } from '../../auth/users.js';
 import { forbidden, unauthorized } from '../errors.js';
@@ -43,6 +44,12 @@ export const sessionPlugin = fp<SessionPluginOptions>(async (app: FastifyInstanc
   app.decorateRequest('user', undefined);
 
   app.addHook('onRequest', async (request) => {
+    // Personal API tokens (§10.4): `Authorization: Bearer mates_…`; no CSRF for scripts.
+    const bearer = request.headers.authorization;
+    if (bearer?.startsWith(`Bearer ${TOKEN_PREFIX}`)) {
+      request.user = await findUserByApiToken(opts.db, bearer.slice('Bearer '.length));
+      return;
+    }
     const token = request.cookies[SESSION_COOKIE];
     if (!token) return;
     const session = await findSession(opts.db, token);

@@ -210,6 +210,8 @@ export interface PodView {
 
 export interface JobsClient {
   createJob(job: V1Job): Promise<{ uid: string }>;
+  /** Combined logs of the Job's pod(s); empty when none exists yet. */
+  podLogs(jobName: string): Promise<string>;
   createSecret(secret: V1Secret, ownerJobUid?: string): Promise<void>;
   setSecretOwner(name: string, jobName: string, jobUid: string): Promise<void>;
   deleteJob(name: string): Promise<void>;
@@ -349,6 +351,30 @@ export class KubernetesJobsClient implements JobsClient {
     return list.items.map(toPodView);
   }
 
+  async podLogs(jobName: string): Promise<string> {
+    const list = await this.core.listNamespacedPod({
+      namespace: this.namespace,
+      labelSelector: `job-name=${jobName}`,
+    });
+    const chunks: string[] = [];
+    for (const pod of list.items) {
+      const name = pod.metadata?.name;
+      if (!name) continue;
+      try {
+        chunks.push(
+          await this.core.readNamespacedPodLog({
+            name,
+            namespace: this.namespace,
+            container: 'runner',
+          }),
+        );
+      } catch (err) {
+        if (!(err instanceof ApiException && (err.code === 400 || err.code === 404))) throw err;
+      }
+    }
+    return chunks.join('\n');
+  }
+
   async listTokenSecrets(): Promise<string[]> {
     const list = await this.core.listNamespacedSecret({
       namespace: this.namespace,
@@ -395,5 +421,10 @@ export class FakeJobsClient implements JobsClient {
   }
   async listTokenSecrets(): Promise<string[]> {
     return [...this.secrets.keys()];
+  }
+  /** Test hook: logs to return per job name. */
+  readonly logs = new Map<string, string>();
+  async podLogs(jobName: string): Promise<string> {
+    return this.logs.get(jobName) ?? '';
   }
 }

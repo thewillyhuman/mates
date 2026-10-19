@@ -9,6 +9,7 @@ import { KubernetesHealth } from './kubernetes/health.js';
 import { Integrations } from './integrations.js';
 import { FakeJobsClient, KubernetesJobsClient, type JobsClient } from './kubernetes/jobs.js';
 import { createLogger } from './logger.js';
+import { AnthropicTest } from './orchestrator/anthropic-test.js';
 import { MergeRequests } from './orchestrator/merge-requests.js';
 import { JobMonitor } from './orchestrator/monitor.js';
 import { Orchestrator } from './orchestrator/reconciler.js';
@@ -123,6 +124,15 @@ const app = await buildApp({
   orchestrator,
   trackerSync,
   stats: new StatsService(pool),
+  anthropicTest: new AnthropicTest({
+    jobs,
+    log,
+    namespace: config.namespace,
+    release: config.release,
+    image: config.runnerImage,
+    serviceAccount: helm.runner?.serviceAccount ?? `${config.release}-runner`,
+    fakeClaude: config.fakeClaude,
+  }),
   fakeClaude: config.fakeClaude,
   kubernetes,
   secureCookies: config.publicUrl.startsWith('https://'),

@@ -8,6 +8,7 @@ import { buildApp, type AppDeps } from '../src/http/app.js';
 import { Integrations } from '../src/integrations.js';
 import { FakeJobsClient } from '../src/kubernetes/jobs.js';
 import { createLogger } from '../src/logger.js';
+import { AnthropicTest } from '../src/orchestrator/anthropic-test.js';
 import { MergeRequests } from '../src/orchestrator/merge-requests.js';
 import { Orchestrator } from '../src/orchestrator/reconciler.js';
 import { InvocationSpawner } from '../src/orchestrator/spawner.js';
@@ -81,6 +82,15 @@ function stubDeps(db: TestDatabase, bootstrap: Bootstrap): Omit<AppDeps, 'uiDir'
     }),
     trackerSync: new TrackerSync({ integrations, log, publicUrl: 'http://mates.test' }),
     stats: new StatsService(db.pool),
+    anthropicTest: new AnthropicTest({
+      jobs: new FakeJobsClient(),
+      log,
+      namespace: 'mates',
+      release: 'mates',
+      image: 'img',
+      serviceAccount: 'sa',
+      fakeClaude: true,
+    }),
     fakeClaude: true,
     secureCookies: false,
     version: 'test',

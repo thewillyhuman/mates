@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Integrations } from '../../integrations.js';
+import type { AnthropicTest } from '../../orchestrator/anthropic-test.js';
 import {
   PROMPT_NAMES,
   defaultPrompt,
@@ -29,6 +30,7 @@ export interface SettingsRouteDeps {
   credentials: CredentialStore;
   teamContext: TeamContextService;
   integrations: Integrations;
+  anthropicTest: Pick<AnthropicTest, 'run'>;
 }
 
 const credentialStatus = z.object({
@@ -179,11 +181,11 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
         return { ok: result.ok, message: result.message, details: { repos: result.repos } };
       }
       if (n === 'anthropic_api_key') {
-        return {
-          ok: false,
-          message: 'the Anthropic test runs a short-lived Job; available with the settings UI (M6)',
-          details: {},
-        };
+        if (!(await deps.credentials.status(n)).set)
+          return { ok: false, message: 'set the Anthropic API key first', details: {} };
+        const result = await deps.anthropicTest.run();
+        if (result.ok) await deps.credentials.markValidated(n);
+        return { ok: result.ok, message: result.message, details: result.details };
       }
       return {
         ok: (await deps.credentials.status(n)).set,

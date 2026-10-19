@@ -91,6 +91,18 @@ export async function listUsers(db: Queryable): Promise<User[]> {
   return r.rows.map(toUser);
 }
 
+export async function updateUserRole(
+  db: Queryable,
+  id: string,
+  role: Role,
+): Promise<User | undefined> {
+  const r = await db.query<UserRow>(
+    `UPDATE users SET role = $2 WHERE id = $1 RETURNING ${columns}`,
+    [id, role],
+  );
+  return r.rows[0] ? toUser(r.rows[0]) : undefined;
+}
+
 export async function deleteUser(db: Queryable, id: string): Promise<boolean> {
   const r = await db.query('DELETE FROM users WHERE id = $1', [id]);
   return (r.rowCount ?? 0) > 0;

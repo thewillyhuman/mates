@@ -12,6 +12,7 @@ import path from 'node:path';
 import type { Pool } from '../db/pool.js';
 import type { Logger } from '../logger.js';
 import type { Integrations } from '../integrations.js';
+import type { AnthropicTest } from '../orchestrator/anthropic-test.js';
 import type { Orchestrator } from '../orchestrator/reconciler.js';
 import type { TrackerSync } from '../orchestrator/tracker-sync.js';
 import type { EventBus } from '../runs/bus.js';
@@ -29,6 +30,8 @@ import { internalRoutes } from './routes/internal.js';
 import { runsRoutes } from './routes/runs.js';
 import { settingsRoutes } from './routes/settings.js';
 import { statsRoutes } from './routes/stats.js';
+import { ticketRoutes } from './routes/tickets.js';
+import { userRoutes } from './routes/users.js';
 import { setupRoutes } from './routes/setup.js';
 import { webhookRoutes } from './routes/webhooks.js';
 
@@ -46,6 +49,7 @@ export interface AppDeps {
   readonly orchestrator: Pick<Orchestrator, 'cancel' | 'pause' | 'resume' | 'retry'>;
   readonly trackerSync: Pick<TrackerSync, 'comment'>;
   readonly stats: StatsService;
+  readonly anthropicTest: Pick<AnthropicTest, 'run'>;
   readonly fakeClaude: boolean;
   readonly kubernetes?: ReadinessDeps['kubernetes'];
   /** Cookies are marked Secure when the public URL is https. */
@@ -107,8 +111,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     credentials: deps.credentials,
     teamContext: deps.teamContext,
     integrations: deps.integrations,
+    anthropicTest: deps.anthropicTest,
   });
   await statsRoutes(app, { stats: deps.stats, settings: deps.settings });
+  await ticketRoutes(app, deps.db);
+  await userRoutes(app, deps.db);
   await webhookRoutes(app, {
     settings: deps.settings,
     integrations: deps.integrations,
