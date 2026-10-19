@@ -45,6 +45,14 @@ spec:
               value: {{ include "mates.publicUrl" . | quote }}
             - name: MATES_CONFIG_FILE
               value: /etc/mates/config.json
+            - name: MATES_INTERNAL_URL
+              value: "http://{{ include "mates.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}"
+            - name: MATES_RUNNER_IMAGE
+              value: {{ include "mates.runnerImage" . | quote }}
+            {{- if .Values.runner.fakeClaude }}
+            - name: MATES_FAKE_CLAUDE
+              value: "1"
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

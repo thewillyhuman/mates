@@ -17,6 +17,8 @@ runner:
     limits: { cpu: "4", memory: "8Gi" }
   timeoutSeconds: 2700
   workspaceSizeGi: 10
+  # Replay recorded transcripts instead of calling Claude (end-to-end tests only).
+  fakeClaude: false
 
 service:
   type: ClusterIP
