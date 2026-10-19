@@ -11,3 +11,4 @@ Numbered, never edited after the fact: supersede with a new file instead.
 | [0004](0004-monorepo-and-shared-core.md) | pnpm monorepo with a shared `@mates/core` library |
 | [0005](0005-fastify.md) | Fastify as the HTTP framework |
 | [0006](0006-migration-job-hook-timing.md) | Migration Job runs post-install, pre-upgrade |
+| [0007](0007-in-process-event-bus.md) | In-process event bus, single API replica |
