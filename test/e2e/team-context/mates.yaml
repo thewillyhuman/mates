@@ -1,0 +1,16 @@
+version: 1
+team:
+  name: E2E team
+  conventions: docs/conventions.md
+repos:
+  - id: webhook-service
+    scm: gitea
+    project: mates/webhook-service
+    default_branch: main
+    about: Delivers outbound webhooks with retries.
+    jira_projects: [API]
+    setup: 'true'
+    test: python3 -m unittest discover -s tests -v
+branching:
+  pattern: 'mates/{ticket}-{slug}'
+  commit_trailer: 'Jira: {ticket}'

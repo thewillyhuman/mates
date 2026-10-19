@@ -110,3 +110,5 @@ jobs:
           kind load docker-image --name mates mates-api:smoke mates-runner:smoke
       - name: Install and verify
         run: scripts/kind-smoke.sh
+      - name: End-to-end with Gitea and fake Claude
+        run: scripts/e2e-kind.sh
