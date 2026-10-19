@@ -9,6 +9,7 @@ FROM node:22-bookworm-slim AS build
 RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
 WORKDIR /src
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json ./
+COPY packages/core/package.json packages/core/
 COPY packages/api/package.json packages/api/
 COPY packages/ui/package.json packages/ui/
 COPY packages/runner/package.json packages/runner/
@@ -33,6 +34,8 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
  && npm cache clean --force \
  && claude --version
 COPY --from=build /src/packages/runner/dist/mates-run.js /usr/local/bin/mates-run
+# Fake-Claude fixtures (§15.1); only used when MATES_FAKE_CLAUDE=1.
+COPY fixtures/claude /usr/local/share/mates/fixtures/claude
 RUN useradd --uid 1000 --create-home --home-dir /home/mate --shell /bin/bash mate \
  && mkdir -p /workspace && chown 1000:1000 /workspace
 USER 1000:1000

@@ -4,6 +4,5 @@
 .git
 docs
 charts
-fixtures
 packages/api/public
 packages/ui/test-results

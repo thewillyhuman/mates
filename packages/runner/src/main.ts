@@ -1,20 +1,28 @@
 import { parseRunnerEnv } from './env.js';
+import { createLog } from './log.js';
+import { runInvocation } from './run.js';
 
 /**
- * `mates-run` entrypoint. M0 ships the image and the environment contract;
- * the invocation lifecycle (§7.3) lands in M2.
+ * `mates-run` entrypoint (§7.3). Exit codes: 0 reported, 1 failed, 143
+ * cancelled (SIGTERM → SIGINT to claude, §7.3 step 9).
  */
-function main(): number {
-  if (process.argv.includes('--version')) {
-    console.log('mates-run 0.1.0');
-    return 0;
-  }
-  const env = parseRunnerEnv(process.env);
-  console.error(
-    `mates-run: invocation ${env.invocationId} (${env.mate}, iteration ${env.iteration}): ` +
-      'invocation lifecycle not implemented yet (milestone M2)',
-  );
-  return 2;
+if (process.argv.includes('--version')) {
+  console.log('mates-run 0.1.0');
+  process.exit(0);
 }
 
-process.exit(main());
+const env = parseRunnerEnv(process.env);
+const log = createLog(env.secrets, {
+  invocation_id: env.invocationId,
+  run_id: env.runId,
+  mate: env.mate,
+});
+const abort = new AbortController();
+process.on('SIGTERM', () => {
+  log.warn('SIGTERM received; stopping claude');
+  abort.abort();
+});
+process.on('SIGINT', () => abort.abort());
+
+const code = await runInvocation({ env, log, signal: abort.signal });
+process.exit(code);
