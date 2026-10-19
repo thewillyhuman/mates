@@ -20,6 +20,7 @@ import { CredentialStore } from '../src/settings/credentials.js';
 import { SettingsService } from '../src/settings/service.js';
 import { Bootstrap } from '../src/setup/bootstrap.js';
 import { StatsService } from '../src/stats/service.js';
+import { TeamContextFetcher } from '../src/team-context/fetcher.js';
 import { TeamContextService } from '../src/team-context/service.js';
 
 type Cookies = { cookies: { name: string; value: string }[] };
@@ -65,6 +66,7 @@ function stubDeps(db: TestDatabase, bootstrap: Bootstrap): Omit<AppDeps, 'uiDir'
     starter: new RunStarter({ db: db.pool, bus, settings, integrations, log }),
     credentials,
     teamContext,
+    teamContextFetcher: new TeamContextFetcher({ settings, integrations, teamContext, log }),
     orchestrator: new Orchestrator({
       db: db.pool,
       bus,

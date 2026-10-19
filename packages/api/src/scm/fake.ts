@@ -81,4 +81,11 @@ export class FakeScm implements Scm {
   async test(): Promise<ScmTestResult> {
     return { ok: true, message: 'fake scm', repos: ['example/repo'] };
   }
+
+  /** Test hook: archive returned by downloadArchive. */
+  archive: { archive: Buffer; sha: string } | null = null;
+  async downloadArchive(project: string, ref: string): Promise<{ archive: Buffer; sha: string }> {
+    if (!this.archive) throw new Error(`no archive for ${project}@${ref}`);
+    return this.archive;
+  }
 }

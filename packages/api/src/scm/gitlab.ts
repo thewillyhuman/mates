@@ -174,6 +174,23 @@ export class GitLabScm implements Scm {
     }
   }
 
+  async downloadArchive(project: string, ref: string): Promise<{ archive: Buffer; sha: string }> {
+    const id = encodeURIComponent(project.replace(/^\/+|\/+$/g, ''));
+    try {
+      const commit = await this.http.json<{ id: string }>(
+        'GET',
+        `/projects/${id}/repository/commits/${encodeURIComponent(ref)}`,
+      );
+      const res = await this.http.request(
+        'GET',
+        `/projects/${id}/repository/archive.tar.gz?sha=${encodeURIComponent(commit.id)}`,
+      );
+      return { archive: Buffer.from(await res.arrayBuffer()), sha: commit.id };
+    } catch (err) {
+      throw wrap(err, `archive of ${project}@${ref}`);
+    }
+  }
+
   private async userIds(usernames: string[]): Promise<number[]> {
     const ids: number[] = [];
     for (const u of usernames) {

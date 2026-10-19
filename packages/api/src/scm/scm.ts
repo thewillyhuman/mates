@@ -66,6 +66,8 @@ export interface Scm {
   commentOnMergeRequest(repo: RepoInfo, mrId: string, markdown: string): Promise<void>;
   /** Lists accessible repositories (§6.2 step 3 "Test"). */
   test(): Promise<ScmTestResult>;
+  /** The repository at `ref` as a tar.gz archive (decision 0017), with the commit it resolved to. */
+  downloadArchive(project: string, ref: string): Promise<{ archive: Buffer; sha: string }>;
 }
 
 export class ScmError extends Error {

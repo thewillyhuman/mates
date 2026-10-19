@@ -1,5 +1,5 @@
 import { validateTeamManifest, type TeamManifest } from '@mates/core';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import * as tar from 'tar';
@@ -90,6 +90,35 @@ export class TeamContextService {
     await writeFile(file, pkg);
     await tar.x({ file, cwd: dest, strip: 0 });
     await rm(file, { force: true });
+  }
+
+  /**
+   * Repacks a provider archive (which wraps everything in `<repo>-<sha>/`)
+   * so `mates.yaml` sits at the root like an uploaded package.
+   */
+  static async stripTopLevel(archive: Buffer): Promise<Buffer> {
+    const dir = await mkdtemp(path.join(tmpdir(), 'mates-tc-'));
+    try {
+      const file = path.join(dir, 'in.tgz');
+      await writeFile(file, archive);
+      const out = path.join(dir, 'out');
+      await mkdir(out, { recursive: true });
+      await tar.x({ file, cwd: out, strip: 1 });
+      const entries = (await readdir(out)).filter((n) => !n.startsWith('.pkg'));
+      const packed = path.join(dir, 'out.tgz');
+      await tar.c({ gzip: true, cwd: out, file: packed, portable: true }, entries);
+      return await readFile(packed);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  /** The active version's provider commit, so the poll can skip unchanged refs. */
+  async activeRef(): Promise<string | null> {
+    const r = await this.db.query<{ ref: string | null }>(
+      'SELECT ref FROM team_context WHERE active',
+    );
+    return r.rows[0]?.ref ?? null;
   }
 
   /** Validates and stores a package; activates it when valid. */

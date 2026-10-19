@@ -161,6 +161,28 @@ export class GiteaScm implements Scm {
     }
   }
 
+  async downloadArchive(project: string, ref: string): Promise<{ archive: Buffer; sha: string }> {
+    const path = project.replace(/^\/+|\/+$/g, '');
+    try {
+      const commit = await this.http
+        .json<{ sha: string }>('GET', `/repos/${path}/git/commits/${encodeURIComponent(ref)}`)
+        .catch(async () => {
+          const branch = await this.http.json<{ commit: { id: string } }>(
+            'GET',
+            `/repos/${path}/branches/${encodeURIComponent(ref)}`,
+          );
+          return { sha: branch.commit.id };
+        });
+      const res = await this.http.request(
+        'GET',
+        `/repos/${path}/archive/${encodeURIComponent(commit.sha)}.tar.gz`,
+      );
+      return { archive: Buffer.from(await res.arrayBuffer()), sha: commit.sha };
+    } catch (err) {
+      throw wrap(err, `archive of ${project}@${ref}`);
+    }
+  }
+
   async test(): Promise<ScmTestResult> {
     try {
       const repos = await this.http.json<GtRepo[]>('GET', '/user/repos?limit=50');

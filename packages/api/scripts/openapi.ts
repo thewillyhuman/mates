@@ -18,6 +18,7 @@ import { CredentialStore } from '../src/settings/credentials.js';
 import { SettingsService } from '../src/settings/service.js';
 import { Bootstrap } from '../src/setup/bootstrap.js';
 import { StatsService } from '../src/stats/service.js';
+import { TeamContextFetcher } from '../src/team-context/fetcher.js';
 import { TeamContextService } from '../src/team-context/service.js';
 
 /**
@@ -69,6 +70,7 @@ const app = await buildApp({
   starter: new RunStarter({ db, bus, settings, integrations, log }),
   credentials,
   teamContext,
+  teamContextFetcher: new TeamContextFetcher({ settings, integrations, teamContext, log }),
   orchestrator: new Orchestrator({
     db,
     bus,

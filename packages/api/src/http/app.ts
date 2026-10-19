@@ -22,6 +22,7 @@ import type { CredentialStore } from '../settings/credentials.js';
 import type { SettingsService } from '../settings/service.js';
 import type { Bootstrap } from '../setup/bootstrap.js';
 import type { StatsService } from '../stats/service.js';
+import type { TeamContextFetcher } from '../team-context/fetcher.js';
 import type { TeamContextService } from '../team-context/service.js';
 import { auditPlugin } from '../audit/log.js';
 import { registerErrorHandler, sendNotFound } from './errors.js';
@@ -48,6 +49,7 @@ export interface AppDeps {
   readonly starter: RunStarter;
   readonly credentials: CredentialStore;
   readonly teamContext: TeamContextService;
+  readonly teamContextFetcher: Pick<TeamContextFetcher, 'refresh'>;
   readonly orchestrator: Pick<Orchestrator, 'cancel' | 'pause' | 'resume' | 'retry'>;
   readonly trackerSync: Pick<TrackerSync, 'comment'>;
   readonly stats: StatsService;
@@ -113,6 +115,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   await settingsRoutes(app, {
     db: deps.db,
+    teamContextFetcher: deps.teamContextFetcher,
     settings: deps.settings,
     credentials: deps.credentials,
     teamContext: deps.teamContext,

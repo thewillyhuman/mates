@@ -27,6 +27,7 @@ import { readHelmConfig } from './settings/helm.js';
 import { SettingsService } from './settings/service.js';
 import { Bootstrap } from './setup/bootstrap.js';
 import { StatsService } from './stats/service.js';
+import { TeamContextFetcher } from './team-context/fetcher.js';
 import { TeamContextService } from './team-context/service.js';
 import { TrackerPoller } from './tracker/poller.js';
 
@@ -116,6 +117,7 @@ const notifier = new Notifier({ db: pool, bus, settings, log, publicUrl: config.
 notifier.subscribe();
 const retention = new Retention({ db: pool, settings, log });
 const starter = new RunStarter({ db: pool, bus, settings, integrations, log });
+const teamContextFetcher = new TeamContextFetcher({ settings, integrations, teamContext, log });
 const poller = new TrackerPoller({
   db: pool,
   settings,
@@ -136,6 +138,7 @@ const app = await buildApp({
   starter,
   credentials,
   teamContext,
+  teamContextFetcher,
   orchestrator,
   trackerSync,
   stats: new StatsService(pool),
@@ -162,6 +165,7 @@ const shutdown = async (signal: string): Promise<void> => {
   monitor.stop();
   poller.stop();
   retention.stop();
+  teamContextFetcher.stop();
   await app.close();
   await pool.end();
   process.exit(0);
@@ -174,6 +178,7 @@ orchestrator.start();
 monitor.start();
 poller.start();
 retention.start();
+teamContextFetcher.start();
 setInterval(() => void metrics.refreshQueueDepth(pool).catch(() => undefined), 15_000).unref();
 log.info({ port: config.port, version }, 'mates-api listening');
 

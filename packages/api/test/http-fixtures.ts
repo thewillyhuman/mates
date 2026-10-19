@@ -10,7 +10,12 @@ import { fileURLToPath } from 'node:url';
  */
 export interface Exchange {
   request: { method: string; url: string; bodyIncludes?: string };
-  response: { status: number; body?: unknown; headers?: Record<string, string> };
+  response: {
+    status: number;
+    body?: unknown;
+    bodyBase64?: string;
+    headers?: Record<string, string>;
+  };
 }
 
 export interface Call {
@@ -53,7 +58,12 @@ export function fixtureFetch(exchanges: Exchange[]): { fetch: typeof fetch; call
           : JSON.stringify(match.response.body);
     const status = match.response.status;
     // The Response constructor refuses a body for 204/205/304.
-    const responseBody = status === 204 || status === 205 || status === 304 ? null : text;
+    const responseBody =
+      status === 204 || status === 205 || status === 304
+        ? null
+        : match.response.bodyBase64 !== undefined
+          ? Buffer.from(match.response.bodyBase64, 'base64')
+          : text;
     return new Response(responseBody, {
       status,
       headers: { 'content-type': 'application/json', ...match.response.headers },

@@ -83,7 +83,10 @@ export const settingsSchema = z.object({
   team_context: z
     .object({
       source: z.enum(['upload', 'git']).default('upload'),
-      git_url: z.string().default(''),
+      /** Provider id from `scm.providers` the repository lives on (decision 0017). */
+      git_provider: z.string().default(''),
+      /** Project path on that provider, e.g. `platform/team-context`. */
+      git_project: z.string().default(''),
       git_ref: z.string().default('main'),
     })
     .prefault({}),

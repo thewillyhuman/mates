@@ -232,6 +232,23 @@ export class GitHubScm implements Scm {
     }
   }
 
+  async downloadArchive(project: string, ref: string): Promise<{ archive: Buffer; sha: string }> {
+    const path = project.replace(/^\/+|\/+$/g, '');
+    try {
+      const commit = await this.http.json<{ sha: string }>(
+        'GET',
+        `/repos/${path}/commits/${encodeURIComponent(ref)}`,
+      );
+      const res = await this.http.request(
+        'GET',
+        `/repos/${path}/tarball/${encodeURIComponent(commit.sha)}`,
+      );
+      return { archive: Buffer.from(await res.arrayBuffer()), sha: commit.sha };
+    } catch (err) {
+      throw wrap(err, `archive of ${project}@${ref}`);
+    }
+  }
+
   async test(): Promise<ScmTestResult> {
     try {
       const repos = await this.http.json<GhRepo[]>('GET', '/user/repos?per_page=50&sort=pushed');

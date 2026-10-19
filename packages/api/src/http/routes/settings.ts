@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { listAudit } from '../../audit/log.js';
 import type { Pool } from '../../db/pool.js';
 import type { Integrations } from '../../integrations.js';
+import type { TeamContextFetcher } from '../../team-context/fetcher.js';
 import type { AnthropicTest } from '../../orchestrator/anthropic-test.js';
 import {
   PROMPT_NAMES,
@@ -29,6 +30,7 @@ import { AppError, badRequest, notFound } from '../errors.js';
 
 export interface SettingsRouteDeps {
   db: Pool;
+  teamContextFetcher: Pick<TeamContextFetcher, 'refresh'>;
   settings: SettingsService;
   credentials: CredentialStore;
   teamContext: TeamContextService;
@@ -265,6 +267,23 @@ export async function settingsRoutes(app: FastifyInstance, deps: SettingsRouteDe
       } catch (err) {
         if (err instanceof TeamContextError) throw badRequest('invalid_package', err.message);
         throw err;
+      }
+    },
+  );
+
+  // §6.2 step 4: fetch the git-sourced package now (decision 0017).
+  r.post(
+    '/api/settings/team-context/refresh',
+    { preHandler: admin, schema: { tags: ['settings'] } },
+    async (req) => {
+      try {
+        const result = await deps.teamContextFetcher.refresh(req.user!.email);
+        await req.audit('audit.team_context.refresh', '', { status: result.status });
+        return result.status === 'updated'
+          ? { status: 'updated', version: serialiseVersion(result.version) }
+          : result;
+      } catch (err) {
+        throw badRequest('refresh_failed', (err as Error).message);
       }
     },
   );
