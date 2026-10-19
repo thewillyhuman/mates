@@ -4,6 +4,15 @@ All notable changes to Mates. Format: one entry per milestone, newest first.
 
 ## Unreleased
 
+### M5 — Cost ledger
+
+- `computeCost` / `costDiscrepancy` in `@mates/core`; ledger rows per
+  invocation and model with reported and computed cost.
+- `GET /api/stats` (per day/week/month/mate/model/run/ticket/repo/project),
+  `GET /api/stats/outcomes`, `GET /api/stats/board` with the daily-budget
+  banner; `GET/PUT /api/settings/pricing`.
+- Settings sections can be replaced wholesale (pricing table, prompt reset).
+
 ### M4 — The loop
 
 - Full §7.5 decision table: intake outcomes, implementer → reviewer
