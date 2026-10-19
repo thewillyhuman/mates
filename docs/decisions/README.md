@@ -18,3 +18,4 @@ Numbered, never edited after the fact: supersede with a new file instead.
 | [0011](0011-no-claude-session-persistence.md) | No `~/.claude` persistence across pods |
 | [0012](0012-test-output-parsers.md) | Test output parsers in v1 |
 | [0013](0013-advisory-locks-and-polling-monitor.md) | Advisory locks per run; Job state by polling |
+| [0014](0014-gitea-and-webhook-secret.md) | Gitea adapter, webhook secret scheme, acceptance-criteria detection |

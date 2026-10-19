@@ -54,4 +54,21 @@ Using the adapters inside the loop (M4), GitHub App auth and SCM webhooks
 
 ## What changed from the plan
 
-(filled in at the end of the milestone)
+- `Tracker.transition` returns a `TransitionResult` (ok/from/to/reason)
+  instead of `void`, so the orchestrator can emit the warning event the spec
+  asks for without a second call; `parseWebhook` takes the trigger rule so
+  it can say whether an issue update matches it.
+- Jira Cloud searches use `POST /rest/api/3/search/jql` (the v3 search
+  endpoint); Data Center keeps `GET /rest/api/2/search`.
+- The `RunStarter` enriches tickets from the tracker on every trigger
+  (manual, webhook, poll) and owns the clarification re-queue (§8.2); the
+  poller also detects new human comments for runs blocked on a question,
+  so the round-trip works without webhooks.
+- Credential "Test" for Jira and SCM providers is live; the Anthropic test
+  needs a short-lived Job and lands with the settings UI (M6).
+- GitHub App authentication is left for M7 as planned; the GitHub adapter
+  already falls back to a ready PR plus the `mates:draft` label when a
+  repository refuses drafts.
+- Fixtures are hand-recorded request/response pairs served by a fake
+  `fetch` rather than nock/msw: no dependency, same coverage, each adapter
+  method asserts the exact request it sends.

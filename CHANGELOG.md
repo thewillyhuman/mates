@@ -4,6 +4,15 @@ All notable changes to Mates. Format: one entry per milestone, newest first.
 
 ## Unreleased
 
+### M3 — Adapters
+
+- `Tracker` and `Scm` ports with in-memory fakes; Jira (Cloud + Data
+  Center, ADF ↔ markdown), GitLab, GitHub (draft fallback, GraphQL mark
+  ready) and Gitea adapters with recorded HTTP fixtures.
+- `POST /webhooks/jira`, JQL polling, ticket enrichment on every trigger,
+  clarification round-trip re-queue, credential "Test" endpoints.
+- MR title and description renderer (§8.3) in `@mates/core`.
+
 ### M2 — Runner + Jobs
 
 - `mates-run`: context download, clone through a credential helper, setup
