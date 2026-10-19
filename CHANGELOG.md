@@ -4,6 +4,23 @@ All notable changes to Mates. Format: one entry per milestone, newest first.
 
 ## Unreleased
 
+### M7 — Hardening
+
+- Audit log of every settings, credential, user, token and run action
+  (`GET /api/settings/audit`, Settings → Audit log).
+- Prometheus metrics at `/metrics` (§14), a daily retention job for
+  transcripts and finished runs, Slack-compatible webhook notifications.
+- Team context fetched from a repository on a configured provider through
+  its archive API, refreshed every five minutes or on demand.
+- OIDC sign-in (authorization code + PKCE) with group → role mapping; the
+  first OIDC user on an empty instance becomes admin.
+- GitHub App authentication per provider: installation tokens minted from
+  the App's private key, cached, and handed to runners through the
+  per-invocation Secret.
+- Chart: NetworkPolicies, `values.schema.json`, OIDC values; the kind e2e
+  runs under Pod Security `restricted`.
+- `docs/operations.md` and a ten-minute README quickstart.
+
 ### M6 — UI
 
 - Board and ticket detail after the mockups, live over SSE: stats strip,

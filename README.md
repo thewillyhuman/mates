@@ -31,7 +31,13 @@ kubectl -n mates port-forward svc/mates 8080:8080
 ```
 
 Open <http://localhost:8080/setup>, paste the token, create the admin, then
-complete Settings → Anthropic, Jira, Source control and Team context.
+complete Settings → Anthropic, Jira, Source control and Team context; the
+checklist page shows what is still missing and every step has a Test
+button. Assign a ticket to Mates in Jira and watch the board. The full
+operator guide is [docs/operations.md](docs/operations.md).
+
+Single sign-on (OIDC), GitHub App tokens, network policies, backups and
+upgrades are covered in [docs/operations.md](docs/operations.md).
 
 ## Development
 
