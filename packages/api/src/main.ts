@@ -10,6 +10,7 @@ import { Integrations } from './integrations.js';
 import { FakeJobsClient, KubernetesJobsClient, type JobsClient } from './kubernetes/jobs.js';
 import { createLogger } from './logger.js';
 import { Metrics } from './metrics.js';
+import { Notifier } from './notifications.js';
 import { Retention } from './retention.js';
 import { AnthropicTest } from './orchestrator/anthropic-test.js';
 import { MergeRequests } from './orchestrator/merge-requests.js';
@@ -111,6 +112,8 @@ const orchestrator = new Orchestrator({
 const monitor = new JobMonitor({ db: pool, bus, jobs, log });
 const metrics = new Metrics();
 metrics.subscribe(bus);
+const notifier = new Notifier({ db: pool, bus, settings, log, publicUrl: config.publicUrl });
+notifier.subscribe();
 const retention = new Retention({ db: pool, settings, log });
 const starter = new RunStarter({ db: pool, bus, settings, integrations, log });
 const poller = new TrackerPoller({
