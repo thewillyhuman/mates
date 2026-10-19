@@ -50,8 +50,21 @@ Integration tests start Postgres through testcontainers; set
 `MATES_TEST_DATABASE_URL` to reuse a running server instead.
 
 Chart checks: `helm lint charts/mates && helm template mates charts/mates | kubeconform -strict`.
-End-to-end on kind: build the images, `kind load docker-image`, then
-`scripts/kind-smoke.sh`.
+
+End-to-end on kind, without spending tokens (fake-Claude mode, §15.1):
+
+```bash
+kind create cluster --name mates-dev
+docker build -f packages/api/Dockerfile -t mates-api:dev .
+docker build -f packages/runner/Dockerfile -t mates-runner:dev .
+kind load docker-image --name mates-dev mates-api:dev mates-runner:dev
+scripts/kind-smoke.sh dev dev   # install, readiness, first admin
+scripts/e2e-kind.sh dev dev     # Gitea + a run through a real runner pod
+```
+
+`runner.fakeClaude=true` makes runner pods replay `fixtures/claude/*.jsonl`
+instead of calling Claude; `MATES_JOBS=fake` runs the API with in-memory
+Jobs for local development without a cluster.
 
 ## License
 

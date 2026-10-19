@@ -4,6 +4,21 @@ All notable changes to Mates. Format: one entry per milestone, newest first.
 
 ## Unreleased
 
+### M2 — Runner + Jobs
+
+- `mates-run`: context download, clone through a credential helper, setup
+  with timeout, Claude Code with the §7.3 flags (or a fixture in fake mode),
+  condensed live-tail events, commit/push guarded to `mates/*` branches,
+  test-output parsing, blob upload, redaction, SIGTERM handling.
+- `@mates/core`: `redact`, `mates.yaml` validation, branch/commit naming,
+  test-output parsers, the invocation context contract, mate output schemas.
+- `mates-api`: settings with Helm precedence, credentials in the release
+  Secret, team-context upload and validation, prompt templates, context
+  bundle builder, Kubernetes Job spawner with per-invocation token Secrets,
+  Job monitor, retry-once supervisor, cancel, blob and context endpoints.
+- Fake-Claude fixtures for the nine Appendix A scenarios; e2e on kind with
+  Gitea.
+
 ### M1 — Event core
 
 - `@mates/core`: stages and the §4.2 state machine, zod schemas for every

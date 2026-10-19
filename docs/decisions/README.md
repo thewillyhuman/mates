@@ -12,3 +12,9 @@ Numbered, never edited after the fact: supersede with a new file instead.
 | [0005](0005-fastify.md) | Fastify as the HTTP framework |
 | [0006](0006-migration-job-hook-timing.md) | Migration Job runs post-install, pre-upgrade |
 | [0007](0007-in-process-event-bus.md) | In-process event bus, single API replica |
+| [0008](0008-context-bundle-via-download.md) | Invocation context delivered by download only |
+| [0009](0009-blobs-in-postgres.md) | Large artefacts stored in Postgres |
+| [0010](0010-conventional-clone-urls.md) | Clone URLs derived from provider base URL until M3 |
+| [0011](0011-no-claude-session-persistence.md) | No `~/.claude` persistence across pods |
+| [0012](0012-test-output-parsers.md) | Test output parsers in v1 |
+| [0013](0013-advisory-locks-and-polling-monitor.md) | Advisory locks per run; Job state by polling |
