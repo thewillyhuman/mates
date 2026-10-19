@@ -12,6 +12,7 @@ import path from 'node:path';
 import type { Pool } from '../db/pool.js';
 import type { Logger } from '../logger.js';
 import type { Integrations } from '../integrations.js';
+import { metricsRoute, type Metrics } from '../metrics.js';
 import type { AnthropicTest } from '../orchestrator/anthropic-test.js';
 import type { Orchestrator } from '../orchestrator/reconciler.js';
 import type { TrackerSync } from '../orchestrator/tracker-sync.js';
@@ -50,6 +51,7 @@ export interface AppDeps {
   readonly orchestrator: Pick<Orchestrator, 'cancel' | 'pause' | 'resume' | 'retry'>;
   readonly trackerSync: Pick<TrackerSync, 'comment'>;
   readonly stats: StatsService;
+  readonly metrics?: Metrics | undefined;
   readonly anthropicTest: Pick<AnthropicTest, 'run'>;
   readonly fakeClaude: boolean;
   readonly kubernetes?: ReadinessDeps['kubernetes'];
@@ -88,6 +90,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(auditPlugin, { db: deps.db });
 
   await healthRoutes(app, { db: deps.db, kubernetes: deps.kubernetes });
+  if (deps.metrics) await metricsRoute(app, deps.metrics);
   await setupRoutes(app, deps.bootstrap);
   await authRoutes(app, deps.db);
   await runsRoutes(app, {
