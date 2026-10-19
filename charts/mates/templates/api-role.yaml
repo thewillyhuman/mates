@@ -17,5 +17,9 @@ rules:
     resources: ["pods/log"]
     verbs: ["get"]
   - apiGroups: [""]
-    resources: ["configmaps", "secrets"]
+    resources: ["configmaps"]
     verbs: ["create", "get", "update", "patch", "delete"]
+  # The monitor lists the per-invocation token Secrets it owns to sweep orphans.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "get", "list", "update", "patch", "delete"]
