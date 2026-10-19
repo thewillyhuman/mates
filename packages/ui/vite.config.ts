@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
@@ -7,6 +8,13 @@ import react from '@vitejs/plugin-react';
  */
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // Dev server and tests use the core sources; the production build uses the built package.
+    alias:
+      process.env.NODE_ENV === 'production'
+        ? {}
+        : { '@mates/core': fileURLToPath(new URL('../core/src/index.ts', import.meta.url)) },
+  },
   build: {
     outDir: '../api/public',
     emptyOutDir: true,

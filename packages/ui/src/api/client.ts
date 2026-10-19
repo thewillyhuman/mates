@@ -25,16 +25,20 @@ export async function api<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
   body?: unknown,
+  init: { raw?: Blob | ArrayBuffer; contentType?: string } = {},
 ): Promise<T> {
   const headers: Record<string, string> = { accept: 'application/json' };
-  if (body !== undefined) headers['content-type'] = 'application/json';
+  if (init.raw !== undefined)
+    headers['content-type'] = init.contentType ?? 'application/octet-stream';
+  else if (body !== undefined) headers['content-type'] = 'application/json';
   if (method !== 'GET') {
     const csrf = readCsrfToken(document.cookie);
     if (csrf) headers['x-csrf-token'] = csrf;
   }
-  const init: RequestInit = { method, headers, credentials: 'same-origin' };
-  if (body !== undefined) init.body = JSON.stringify(body);
-  const res = await fetch(path, init);
+  const request: RequestInit = { method, headers, credentials: 'same-origin' };
+  if (init.raw !== undefined) request.body = init.raw;
+  else if (body !== undefined) request.body = JSON.stringify(body);
+  const res = await fetch(path, request);
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const json: unknown = text ? JSON.parse(text) : undefined;
@@ -43,6 +47,23 @@ export async function api<T>(
     throw new ApiError(res.status, err?.code ?? 'error', err?.message ?? res.statusText);
   }
   return json as T;
+}
+
+export const get = <T>(path: string) => api<T>('GET', path);
+export const post = <T>(path: string, body?: unknown) => api<T>('POST', path, body);
+export const put = <T>(path: string, body?: unknown) => api<T>('PUT', path, body);
+export const del = <T>(path: string) => api<T>('DELETE', path);
+
+/** Builds a query string, skipping empty values. */
+export function qs(params: Record<string, string | number | boolean | undefined | null>): string {
+  const entries = Object.entries(params).filter(
+    ([, v]) => v !== undefined && v !== null && v !== '',
+  );
+  if (entries.length === 0) return '';
+  return (
+    '?' +
+    entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')
+  );
 }
 
 export interface User {
