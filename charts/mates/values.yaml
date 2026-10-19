@@ -68,22 +68,25 @@ networkPolicy:
   egressAllowAll: true
   egressCidrs: []
 
-# Anything here is "managed by Helm" in the UI (§5.2).
+# Settings pinned here are "managed by Helm" (§5.2): they override what the
+# UI stores and show as read-only there. Leave a key out to let operators
+# change it from Settings. The keys and their defaults:
 config:
-  maxIterations: 4
-  budgets:
-    perRunUsd: 25
-    perDayUsd: 200
-  models:
-    intake: claude-sonnet-5-5
-    implementer: claude-opus-5-5
-    reviewer: claude-opus-5-5
-  jira:
-    pollIntervalSeconds: 60
-  retention:
-    transcriptsDays: 14
-    eventsDays: 365
-  timezone: UTC
+  {}
+  # maxIterations: 4
+  # budgets:
+  #   perRunUsd: 25
+  #   perDayUsd: 200
+  # models:
+  #   intake: claude-sonnet-5-5
+  #   implementer: claude-opus-5-5
+  #   reviewer: claude-opus-5-5
+  # jira:
+  #   pollIntervalSeconds: 60
+  # retention:
+  #   transcriptsDays: 14
+  #   eventsDays: 365
+  # timezone: UTC
 
 metrics:
   enabled: true
