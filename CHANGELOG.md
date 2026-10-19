@@ -4,6 +4,23 @@ All notable changes to Mates. Format: one entry per milestone, newest first.
 
 ## Unreleased
 
+### M4 — The loop
+
+- Full §7.5 decision table: intake outcomes, implementer → reviewer
+  iterations with the draft MR opened on the first push and refreshed after
+  each one, approval → ready → done, cap → blocked with unresolved points,
+  empty diffs, budget stops, infra retries, clarification round-trip with
+  a three-round limit.
+- Jira status-map transitions and comments on clarification, readiness,
+  cap, budget and failure; `tracker.transition_skipped` when the map asks
+  for an unavailable transition.
+- `POST /api/runs/{id}/pause|resume|retry` (retry may raise the budget),
+  `POST /api/runs/{id}/nudges` with tracker echo and "and retry".
+- Loop tests for all five §15.2 scenarios plus budget, pause and nudges;
+  the kind e2e runs them against Gitea.
+- Chart: `config` is empty by default so settings are UI-managed unless
+  pinned in values.
+
 ### M3 — Adapters
 
 - `Tracker` and `Scm` ports with in-memory fakes; Jira (Cloud + Data
