@@ -1,5 +1,6 @@
 // @ts-check
 import js from '@eslint/js';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -20,6 +21,17 @@ export default tseslint.config(
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+    },
+  },
+  {
+    files: ['packages/ui/src/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    // The hook rules proper; the React Compiler heuristics (set-state-in-effect,
+    // refs, purity) are off: this app does not use the compiler and they flag
+    // ordinary data loading and Date.now() in render.
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
     },
   },
   {
