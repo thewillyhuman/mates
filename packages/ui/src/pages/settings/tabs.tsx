@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
-import { ApiError, api, del, get, post, put } from '../../api/client.js';
+import { useCallback, useEffect, useState } from 'react';
+import { ApiError, api, del, get, post, put, qs } from '../../api/client.js';
 import { useAuth } from '../../api/auth.js';
-import type { ApiTokenView, PromptView, Settings, TeamContextVersion } from '../../api/types.js';
+import type {
+  ApiTokenView,
+  AuditEntry,
+  PromptView,
+  Settings,
+  TeamContextVersion,
+} from '../../api/types.js';
 import type { User } from '../../api/client.js';
 import { Chip, ErrorBox } from '../../components/ui.js';
 import { formatDateTime } from '../../lib/format.js';
@@ -1118,6 +1124,81 @@ export function PricingTab() {
           <span className={result.ok ? 'result-ok' : 'result-fail'}>{result.message}</span>
         )}
       </div>
+    </section>
+  );
+}
+
+/** Who changed what (§10.5): the audit log, newest first, loaded in pages. */
+export function AuditTab() {
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const loadMore = useCallback(async (before?: number) => {
+    setBusy(true);
+    try {
+      const r = await get<{ entries: AuditEntry[] }>(
+        `/api/settings/audit${qs({ before, limit: 100 })}`,
+      );
+      setEntries((prev) => (before ? [...prev, ...r.entries] : r.entries));
+      setDone(r.entries.length < 100);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+  useEffect(() => {
+    void loadMore();
+  }, [loadMore]);
+  const last = entries[entries.length - 1];
+  return (
+    <section className="card">
+      <h2>Audit log</h2>
+      <p className="hint">
+        Every settings, credential, user and run action, with who did it. Entries live as long as
+        the events retention window.
+      </p>
+      <table className="data">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Who</th>
+            <th>Action</th>
+            <th>Target</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e) => (
+            <tr key={e.id}>
+              <td className="muted">{formatDateTime(e.ts)}</td>
+              <td>{e.actor}</td>
+              <td>
+                <code>{e.action.replace(/^audit\./, '')}</code>
+              </td>
+              <td>{e.target}</td>
+              <td className="small muted">
+                {Object.keys(e.details).length ? JSON.stringify(e.details) : ''}
+              </td>
+            </tr>
+          ))}
+          {entries.length === 0 && (
+            <tr>
+              <td colSpan={5} className="muted">
+                Nothing recorded yet.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      {!done && last && (
+        <button
+          className="btn"
+          type="button"
+          disabled={busy}
+          onClick={() => void loadMore(last.id)}
+        >
+          Load older
+        </button>
+      )}
     </section>
   );
 }

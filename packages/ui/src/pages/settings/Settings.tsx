@@ -7,6 +7,7 @@ import { Chip } from '../../components/ui.js';
 import { SettingsProvider, useSettings } from './common.js';
 import {
   AnthropicTab,
+  AuditTab,
   JiraTab,
   ModelsTab,
   NotificationsTab,
@@ -32,6 +33,7 @@ const TABS = [
   { path: 'tokens', label: 'API tokens', el: <TokensTab /> },
   { path: 'prompts', label: 'Prompts', el: <PromptsTab /> },
   { path: 'pricing', label: 'Pricing', el: <PricingTab /> },
+  { path: 'audit', label: 'Audit log', el: <AuditTab /> },
 ];
 
 /** The wizard's last page: what is still red (§6.2). */

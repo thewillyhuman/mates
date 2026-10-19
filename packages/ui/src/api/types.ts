@@ -125,3 +125,13 @@ export interface SettingsResponse {
 }
 
 export type { Stage, RunProjection };
+
+/** One row of the audit log (§10.5). */
+export interface AuditEntry {
+  id: number;
+  ts: string;
+  actor: string;
+  action: string;
+  target: string;
+  details: Record<string, unknown>;
+}
