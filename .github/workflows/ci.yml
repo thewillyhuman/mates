@@ -43,6 +43,39 @@ jobs:
         env:
           MATES_TEST_DATABASE_URL: postgres://test:test@localhost:5432/test
 
+  ui-e2e:
+    name: browser tests (playwright)
+    runs-on: ubuntu-latest
+    needs: [test]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U test" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - run: pnpm --filter mates-ui exec playwright install --with-deps chromium
+      - run: pnpm --filter mates-ui exec playwright test
+        env:
+          MATES_TEST_DATABASE_URL: postgres://test:test@localhost:5432/test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: packages/ui/test-results
+
   chart:
     name: helm lint + kubeconform
     runs-on: ubuntu-latest
