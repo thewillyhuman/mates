@@ -1,0 +1,112 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  test:
+    name: lint, typecheck, unit + integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U test" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm -r build
+      - run: pnpm typecheck
+      - run: pnpm test
+        env:
+          MATES_TEST_DATABASE_URL: postgres://test:test@localhost:5432/test
+
+  chart:
+    name: helm lint + kubeconform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+      - run: helm lint charts/mates
+      - run: helm template mates charts/mates | kubeconform -strict -summary -kubernetes-version 1.30.0
+      - run: helm template mates charts/mates --set postgresql.enabled=false --set externalDatabase.url=postgres://x:y@db/mates --set ingress.enabled=true --set ingress.host=mates.example.com | kubeconform -strict -summary -kubernetes-version 1.30.0
+
+  images:
+    name: build images
+    runs-on: ubuntu-latest
+    needs: [test]
+    strategy:
+      matrix:
+        component: [api, runner]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/mates-${{ matrix.component }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/${{ matrix.component }}/Dockerfile
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  kind-smoke:
+    name: helm install on kind
+    runs-on: ubuntu-latest
+    needs: [chart]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: mates
+      - name: Build images for kind
+        run: |
+          docker build -f packages/api/Dockerfile -t mates-api:smoke .
+          docker build -f packages/runner/Dockerfile -t mates-runner:smoke .
+          kind load docker-image --name mates mates-api:smoke mates-runner:smoke
+      - name: Install and verify
+        run: scripts/kind-smoke.sh
