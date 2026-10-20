@@ -54,7 +54,10 @@ log "pushing the seed repository"
 cp -r test/e2e/seed-repo "$WORK/seed" && cd "$WORK/seed"
 git init -q -b main . && git add -A && git -c user.name=seed -c user.email=seed@example.com commit -qm "seed"
 printf '#!/bin/sh\necho "%s"\n' "$GITEA_TOKEN" > "$WORK/askpass" && chmod +x "$WORK/askpass"
-GIT_ASKPASS="$WORK/askpass" git push -q --force "http://$GITEA_USER@localhost:13000/$GITEA_USER/webhook-service.git" main
+# Credential helpers are disabled so the push neither reads a token stored by
+# an earlier run (stale on a fresh Gitea) nor stores this one in the keychain.
+GIT_ASKPASS="$WORK/askpass" git -c credential.helper= push -q --force \
+  "http://$GITEA_USER@localhost:13000/$GITEA_USER/webhook-service.git" main
 cd - >/dev/null
 
 # ---------------------------------------------------------------- Mates
