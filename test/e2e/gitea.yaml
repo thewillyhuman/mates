@@ -13,9 +13,18 @@ spec:
     metadata:
       labels: { app: gitea }
     spec:
+      # Runs under the restricted Pod Security profile the smoke script
+      # applies to the namespace, hence the rootless image.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: gitea
-          image: gitea/gitea:1.22
+          image: gitea/gitea:1.22-rootless
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
           env:
             - { name: GITEA__security__INSTALL_LOCK, value: 'true' }
             - { name: GITEA__database__DB_TYPE, value: sqlite3 }

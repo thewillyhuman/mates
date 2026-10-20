@@ -38,8 +38,8 @@ fi
 log "deploying gitea"
 kubectl -n "$NS" apply -f test/e2e/gitea.yaml >/dev/null
 kubectl -n "$NS" rollout status deploy/gitea --timeout=3m
-kubectl -n "$NS" exec deploy/gitea -- su git -c \
-  "gitea admin user create --admin --username $GITEA_USER --password $GITEA_PASS --email mates@example.com --must-change-password=false" \
+kubectl -n "$NS" exec deploy/gitea -- \
+  gitea admin user create --admin --username "$GITEA_USER" --password "$GITEA_PASS" --email mates@example.com --must-change-password=false \
   >/dev/null 2>&1 || echo "(gitea user exists)"
 kubectl -n "$NS" port-forward svc/gitea 13000:3000 >/dev/null 2>&1 &
 for _ in $(seq 1 30); do curl -fsS http://localhost:13000/api/healthz >/dev/null 2>&1 && break; sleep 1; done
