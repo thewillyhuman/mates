@@ -70,18 +70,21 @@ spec:
               app.kubernetes.io/name: mates-runner
       ports:
         - { protocol: TCP, port: {{ .Values.service.port }} }
+    {{- if .Values.networkPolicy.ingressNamespaces }}
     - from:
-        {{- if .Values.networkPolicy.ingressNamespaces }}
         {{- range .Values.networkPolicy.ingressNamespaces }}
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ . }}
         {{- end }}
-        {{- else }}
-        - namespaceSelector: {}
-        {{- end }}
       ports:
         - { protocol: TCP, port: {{ .Values.service.port }} }
+    {{- else }}
+    # No "from": any source, including ingress controllers on the host
+    # network, which no pod or namespace selector can match.
+    - ports:
+        - { protocol: TCP, port: {{ .Values.service.port }} }
+    {{- end }}
 {{- if .Values.postgresql.enabled }}
 ---
 # The bundled database is reachable from the API only.
